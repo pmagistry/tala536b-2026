@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -454,19 +454,40 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Ajout d'un bigramme
+
+    Notes personel
+
+    - er ou ch parce que il y a l'air d'en avoir bcp en fr et allmand pour le corpus 2 langues
+
+    - ! modiffication faite pour er actuellement
+    """)
+    return
+
+
 @app.cell
 def _(mo, np):
+    #Chemin des corpus
+    #data_2langue = "./Corpus/corpus_2langue.txt"
+    #data_6langues = "./Corpus/corpus_6langues.txt"
 
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("./Corpus/corpus_2langue.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_er = text.count("er")
+                #n_ch = text.count("ch")
+        
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+        
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "er": n_er / l}
                 data.append(instance)
         return data
 
@@ -484,7 +505,8 @@ def _(mo, np):
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X_lang = np.array([[d['th'], d['en'], d['er']] for d in data_lang])
+    #X_lang = np.array([[d['th'], d['en'],  d['ch']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
     return X_lang, y_lang
@@ -498,11 +520,30 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Notes personels
+    - Teste fait avec Dense(CHIFFREs,activation='tanh')
+        - 2, 3, 10 le nombres de neuronne en plsu ou moin donne toujour des résultats aleatoire sans nettes ameliorations
+    """)
+    return
+
+
 @app.cell
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
-    model = Sequential([
+    # notes de changment (shape=(2,) en 3 parce que 3 bigrammes
+    #version modele simple 
+    '''model = Sequential([
         keras.layers.Input(shape=(2,)),
+        Dense(1, activation='sigmoid')
+    ])'''
+
+    #Version modele couche cache
+    model = Sequential([
+        keras.layers.Input(shape=(3,)),
+        Dense(10,activation='tanh'),
         Dense(1, activation='sigmoid')
     ])
 
@@ -526,7 +567,79 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Affichage des poids appris
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nPoids pour 'er_freq' : {weights[2][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ##Implémentation en pytorch
+    """)
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Notes personels
+    - import : déja fait plus haut
+    - Donnée : chragé avec le corpus (2 langues) dans chargement des données ( variable X_lang, y_lang)
+        - dtype float32 sion erreur scalar
+    - la precision peut etre tres haute comme tres basse a chaque fois que je redemarre la cellule (? c'est pareil pour la partie keras donc surment dut a l'aleatoire)
+    """)
+    return
+
+
+@app.cell
+def _(X_lang, torch, y_lang):
+    #Implementation de pytorch 
+
+    #convertit le tab numpy pour torch
+    X_lang_torch = torch.tensor(X_lang, dtype=torch.float32) #float 32 parce que sinon ça bug
+    y_lang_torch = torch.tensor(y_lang, dtype=torch.float32).unsqueeze(1)
+
+    #affiche pour vercifier
+    print(X_lang_torch.shape, y_lang_torch.shape)
+    return X_lang_torch, y_lang_torch
+
+
+@app.cell
+def _(X_lang_torch, nn, torch, y_lang_torch):
+    #Perceptron
+    # notes de changment 3 bigramme donc passe à 3 pour Linear(2,1) 
+    lang_model = nn.Linear(3,1) #2 bigrames et 2 langue dans mon corpus donc 2 choix
+    print(lang_model)
+
+    #compil modele
+    opt_lang = torch.optim.SGD(lang_model.parameters(), lr=0.1) #équivalent de optimizer=SGD() et garde lr 0,1 
+    loss_fn_lang = nn.BCEWithLogitsLoss() # équivalent de loss='binary_crossentropy'
+
+    #entrainement
+    for epoch in range(10):
+        opt_lang.zero_grad()
+        loss_lang = loss_fn_lang(lang_model(X_lang_torch), y_lang_torch)
+        loss_lang.backward()
+        opt_lang.step()
+
+        #Affichage pour suivre
+        print(f"epoch {epoch}, loss={loss_lang.item():.4f}")
+
+    #Evaluation
+    with torch.no_grad():
+        acc_lang = ((torch.sigmoid(lang_model(X_lang_torch)) > 0.5).float() == y_lang_torch).float().mean().item()
+
+    #Affichage poids
+    weights_lang = lang_model.weight.data.squeeze() 
+    bias_lang = lang_model.bias.data.item() 
+
+    print("\n")
+    print(f"Précision du modèle Pytorch : {acc_lang:.2%}\nPoids pour 'th_freq' : {weights_lang[0]:.4f}\nPoids pour 'en_freq' : {weights_lang[1]:.4f}\nPoids pour 'er_freq' : {weights_lang[2]:.4f}\nBiais : {bias_lang:.4f}")
     return
 
 
