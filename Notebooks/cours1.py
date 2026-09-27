@@ -529,8 +529,9 @@ def _(mo, np):
                 label, text = line.strip().split(" ",1) # on ne fait qu'1 split
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_de = text.count("de") # ajout d'un bigramme
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "de": n_de /l}
                 data.append(instance) # data est une liste de dictionnaires
         return data
 
@@ -538,7 +539,7 @@ def _(mo, np):
 
     # normalisation
     def normalise_data(dataset):
-        for k in dataset[0].keys(): # k prend les valeurs : "label", "th", "en"
+        for k in dataset[0].keys(): # k prend les valeurs : "label", "th", "en", "de"
             if k != 'label': # les "coordonnées" du texte (comptes de th et en)
                 mean = np.mean([d[k] for d in dataset]) # moyenne des valeurs de th et en
                 std = np.std([d[k] for d in dataset]) # ecart-type des valeurs de th et en
@@ -550,7 +551,7 @@ def _(mo, np):
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang]) 
+    X_lang = np.array([[d['th'], d['en'], d['de']] for d in data_lang]) 
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     # on convertit les labels "deu" en 0.0 (float) et "eng" en 1.0
     mo.md("essayez avec et sans normalisation !")
@@ -569,7 +570,7 @@ def _(mo):
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
-        keras.layers.Input(shape=(2,)),
+        keras.layers.Input(shape=(3,)), # modif car mtn 3 entrées
         Dense(1), # ajout d'une couche, https://stackoverflow.com/questions/46572674/keras-sequential-model-input-layer
         Dense(1, activation='sigmoid')
     ])
@@ -621,7 +622,7 @@ def _(bias, data_lang, load_data, mo, model, normalise_data, np, weights):
     normalise_data(data_lang_full)
 
     # encodage des données
-    X_lang_full = np.array([[d['th'], d['en']] for d in data_lang]) 
+    X_lang_full = np.array([[d['th'], d['en'], d['de']] for d in data_lang]) 
     y_lang_full = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     # on convertit les labels "deu" en 0.0 (float) et "eng" en 1.0
 
