@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -124,14 +124,14 @@ def _(X_lin, mo, torch, y_lin):
 
 
 @app.cell
-def _(np, plt, w_perc):
+def _(np, plt):
     def plot_artifical_data(X, y, w, b, title="données et modèle linéaires"):
         fig, ax = plt.subplots(figsize=(5, 4))
         m = y == 1
         ax.scatter(X[m, 0], X[m, 1], c="tab:red", s=15, label="classe 1")
         ax.scatter(X[~m, 0], X[~m, 1], c="tab:blue", s=15, label="classe 0")
         xs = np.linspace(-3, 3, 50)
-        if abs(w_perc[1]) > 1e-8:
+        if abs(w[1]) > 1e-8:
             ax.plot(xs, -(w[0] * xs + b) / w[1], "k-", lw=2)
         ax.set_title(title)
         ax.legend()
@@ -527,6 +527,116 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return acc_keras, model
+
+
+@app.cell
+def _(X_lang, model, plot_artifical_data, y_lang):
+    _weights_k, _bias_k = model.layers[0].get_weights()
+    fig_keras = plot_artifical_data(X_lang, y_lang, w=_weights_k[:, 0], b=_bias_k[0],
+                                  title="Keras : th (x) vs en (y)")
+    fig_keras
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Entrainement avec pytorch pour la classification de langues
+    """)
+    return
+
+
+@app.cell
+def _(X_lang, mo, nn, torch, y_lang):
+    def build_and_train_torch(X, y, epochs=10):
+      X = torch.tensor(X, dtype=torch.float32)
+      y = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
+
+      n = int(len(X) * 0.8)
+      X_train, y_train, X_val, y_val = X[:n], y[:n], X[n:], y[n:]
+
+      model = nn.Linear(2, 1)
+
+      opt = torch.optim.SGD(model.parameters(), lr=0.01)
+      loss_fn = nn.BCEWithLogitsLoss()
+      history = {"loss": [], "val_loss": []}
+
+      for _ in range(epochs):
+          perm = torch.randperm(n)
+          for i in range(0, n, 32):
+              idx = perm[i:i+32]
+              opt.zero_grad()
+              loss = loss_fn(model(X_train[idx]), y_train[idx])
+              loss.backward()
+              opt.step()
+          with torch.no_grad():
+              history["loss"].append(loss_fn(model(X_train), y_train).item())
+              history["val_loss"].append(loss_fn(model(X_val), y_val).item())
+
+      with torch.no_grad():
+          acc = ((torch.sigmoid(model(X)) > 0.5).float() == y).float().mean().item()
+      return model, history, acc
+
+    model_torch, history_torch, acc_torch = build_and_train_torch(X_lang, y_lang)
+    mo.md(f"Précision : {acc_torch:.2%}")
+    return (model_torch,)
+
+
+@app.cell
+def _(X_lang, model_torch, plot_artifical_data, y_lang):
+    plot_artifical_data(X_lang, y_lang, model_torch.weight.data[0].numpy(),
+                          model_torch.bias.item(), title="Oui")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Keras + 1 layer
+    """)
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, X_lang, acc_keras, keras, mo, model, y_lang):
+    model_2 = Sequential([
+      keras.layers.Input(shape=(2,)),
+      Dense(4, activation='tanh'),
+      Dense(1, activation='sigmoid')
+    ])
+
+    model_2.compile(
+      optimizer=SGD(),
+      loss='binary_crossentropy',
+      metrics=['accuracy']
+    )
+
+    model_2.fit(X_lang, y_lang,
+                          epochs=10,
+                          verbose=1,
+                          shuffle=True,
+                          validation_split=0.2)
+
+    loss_2, acc_2 = model_2.evaluate(X_lang, y_lang, verbose=0)
+
+    weights_2 = model.layers[0].get_weights()[0]
+    bias_2 = model.layers[0].get_weights()[1]
+    mo.md(f"Précision avec une couche cachée : {acc_2:.2%} (sans : {acc_keras:.2%})")
+    return (model_2,)
+
+
+@app.cell
+def _(X_lang, model_2, plot_artifical_data, y_lang):
+    _weights_k, _bias_k = model_2.layers[0].get_weights()
+    fig_keras_2 = plot_artifical_data(X_lang, y_lang, w=_weights_k[:, 0], b=_bias_k[0],
+                                  title="Keras : th (x) vs en (y)")
+    fig_keras_2
+    return
+
+
+@app.cell
+def _():
     return
 
 
