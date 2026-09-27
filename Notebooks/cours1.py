@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -120,7 +120,7 @@ def _(X_lin, mo, torch, y_lin):
 
     w_perc, b_perc, n_ep = train_perceptron(X_lin, y_lin)
     mo.md("entrainement d'un perceptron")
-    return b_perc, w_perc
+    return b_perc, train_perceptron, w_perc
 
 
 @app.cell
@@ -143,6 +143,7 @@ def _(np, plt, w_perc):
 
 @app.cell
 def _(X_lin, b_perc, plot_artifical_data, w_perc, y_lin):
+
     fig_perc = plot_artifical_data(X_lin, y_lin, w_perc, b_perc, "Perceptron")
     return (fig_perc,)
 
@@ -460,7 +461,7 @@ def _(mo, np):
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("./Data/corpus.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
@@ -487,7 +488,7 @@ def _(mo, np):
     X_lang = np.array([[d['th'], d['en']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
+    return X_lang, normalise_data, y_lang
 
 
 @app.cell(hide_code=True)
@@ -527,6 +528,161 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell
+def _(X_lang, mo, plot_artifical_data, train_perceptron, y_lang):
+    # classer avec pytorch
+
+    """
+    On peut réutiliser la fonction 'train_perceptron' présente au début du notebook, en utilisant les variables 'X_lang' et 'y_lang' pour traiter les données du corpus 
+    """
+
+    w_lang, b_lang, n_ep_lang = train_perceptron(X_lang, y_lang)
+    mo.md('entrainement du perceptron sur les données textuelles')
+
+    fig_lang = plot_artifical_data(X_lang, y_lang, w_lang, b_lang, 'Perceptron pour la classification en langues')
+
+    mo.vstack([mo.md('Graphe obtenu :'), fig_lang,])
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
+    # ajouter une couche 
+
+    """
+    Pour ajouter une couche au modèle keras, on peut changer le nombre de couches dans la déclaration du modèle, en ajoutant un nouvel appel à la fonction 'Dense()' pour ajouter une nouvelle couche au réseau
+    """
+
+    model_3 = Sequential([
+        keras.layers.Input(shape=(2,)),
+        Dense(1, activation='sigmoid'),
+        Dense(1, activation='sigmoid')
+    ])
+
+    model_3.compile(
+        optimizer=SGD(),
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    model_3.fit(X_lang, y_lang,
+                        epochs=10, 
+                        verbose=1, 
+                        shuffle=True, 
+                        validation_split=0.2)
+
+    loss_keras_3, acc_keras_3 = model_3.evaluate(X_lang, y_lang, verbose=0)
+
+    weights_3 = model_3.layers[0].get_weights()[0]
+    bias_3 = model_3.layers[0].get_weights()[1]
+    mo.md(f"Précision du modèle : {acc_keras_3:.2%}\n\nPoids pour 'en_freq' : {weights_3[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights_3[1][0]:.4f}\n\nBiais : {bias_3[0]:.4f}")
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, keras, mo, normalise_data, np):
+    # ajouter un bigramme 
+
+    """
+    Pour rajouter un bigramme, je vais rajouter un deuxième bigramme courant en anglais, voir si joindre le compte de celui-ci et 'th' permet d'améliorer les performances du perceptron pour reconnaitre la langue. En recherchant, j'ai sélectionné le bigramme 'in', qui est l'un des plus courant en anglais après 'th'. Lors de la transformation des données en array, on additionne les fréquences relatives de ces deux bigrammes, pour tenter de renforcer les performances pour la reconnaissance de l'anglais
+    """
+
+    def load_data_in():
+        data = []
+        with open("./Data/corpus.txt") as file:
+            for line in file:
+                label, text = line.strip().split(" ",1)
+                n_th = text.count("th")
+                n_en = text.count("en")
+                n_in = text.count("in")
+                l = len(text)
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "in": n_in/l}
+                data.append(instance)
+        return data
+
+    data_lang_in = load_data_in()[:200]
+
+    normalise_data(data_lang_in)
+
+    X_lang_in = np.array([[d['th'], d['en']+d['in']] for d in data_lang_in])
+    y_lang_in = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang_in])
+    mo.md("essayez avec et sans normalisation !")
+
+    model_in = Sequential([
+        keras.layers.Input(shape=(2,)),
+        Dense(1, activation='sigmoid'),
+    ])
+
+    model_in.compile(
+        optimizer=SGD(),
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    model_in.fit(X_lang_in, y_lang_in,
+                        epochs=10, 
+                        verbose=1, 
+                        shuffle=True, 
+                        validation_split=0.2)
+
+    loss_keras_in, acc_keras_in = model_in.evaluate(X_lang_in, y_lang_in, verbose=0)
+
+    weights_in = model_in.layers[0].get_weights()[0]
+    bias_in = model_in.layers[0].get_weights()[1]
+    mo.md(f"Précision du modèle : {acc_keras_in:.2%}\n\nPoids pour 'en_freq' : {weights_in[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights_in[1][0]:.4f}\n\nBiais : {bias_in[0]:.4f}")
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, keras, mo, normalise_data, np):
+    """
+    réponse alternative au point 3, changer la reconnaissance de l'allemend pour la reconnaissance du français avec le bigramme 'le'
+    """
+
+    def load_data_fr():
+        data = []
+        with open("./Data/corpus6.txt") as file:
+            for line in file:
+                label, text = line.strip().split(" ",1)
+                n_le = text.count("le")
+                n_th = text.count("th")
+                l = len(text)
+                instance = {"label":label, "le": n_le / l, "th": n_th / l}
+                data.append(instance)
+        return data
+
+    data_lang_fr = load_data_fr()[:200]
+
+    normalise_data(data_lang_fr)
+
+    X_lang_fr = np.array([[d['th'], d['le']] for d in data_lang_fr])
+    y_lang_fr = np.array([0.0 if d['label'] == 'fra' else 1.0 for d in data_lang_fr])
+
+    model_fr = Sequential([
+        keras.layers.Input(shape=(2,)),
+        Dense(1, activation='sigmoid'),
+    ])
+
+    model_fr.compile(
+        optimizer=SGD(),
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    model_fr.fit(X_lang_fr, y_lang_fr,
+                        epochs=10, 
+                        verbose=1, 
+                        shuffle=True, 
+                        validation_split=0.2)
+
+    loss_keras_fr, acc_keras_fr = model_fr.evaluate(X_lang_fr, y_lang_fr, verbose=0)
+
+    weights_fr = model_fr.layers[0].get_weights()[0]
+    bias_fr = model_fr.layers[0].get_weights()[1]
+    mo.md(f"Précision du modèle : {acc_keras_fr:.2%}\n\nPoids pour 'le_freq' : {weights_fr[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights_fr[1][0]:.4f}\n\nBiais : {bias_fr[0]:.4f}")
     return
 
 
