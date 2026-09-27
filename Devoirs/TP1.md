@@ -15,9 +15,9 @@
 
 ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
 
-...
+Utiliser un classifieur non linéaire comme SVM de scikit-learn.
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
 (ou dites si tout va bien !)
-...
+J'ai eu des difficultés pour faire tourner `marimo` qui utilise le module `msgspec`. L'installation intégrante de `marimo` était introuvable par python. Il a fallut le supprimer et réinstaller manuellement. 
