@@ -15,9 +15,10 @@
 
 ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
 
-...
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
+
+Le code tourne parfaitement sur ma machine. Et j'apprécie beaucoup les notebooks marimo !
 
 Je n'ai malheuresement pas eu le temps de bien m'imprégner du code avant la deadline. Je n'ai pas encore accès à Moodle (inscription en R&D, en attente de validation). 
 Serait-il possible d'avoir une deadline du mardi au lundi suivant ? Si ce n'est pas possible, j'essayerai de mieux m'organiser les semaines suivantes !
