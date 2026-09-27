@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -144,6 +144,8 @@ def _(np, plt, w_perc):
 @app.cell
 def _(X_lin, b_perc, plot_artifical_data, w_perc, y_lin):
     fig_perc = plot_artifical_data(X_lin, y_lin, w_perc, b_perc, "Perceptron")
+
+    fig_perc
     return (fig_perc,)
 
 
@@ -245,6 +247,8 @@ def _(X_lin, plot_artifical_data, single, y_lin):
     fig_sgd = plot_artifical_data(X_lin, y_lin,
                                   w=single.weight.data.squeeze().numpy(),
                                   b=single.bias.data.item(), title="1 neuron, SGD")
+
+    fig_sgd
     return (fig_sgd,)
 
 
@@ -465,8 +469,10 @@ def _(mo, np):
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_ch = text.count("ch")
+
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l,  "ch": n_ch /l}
                 data.append(instance)
         return data
 
@@ -484,7 +490,7 @@ def _(mo, np):
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X_lang = np.array([[d['th'], d['en'],d['ch']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
     return X_lang, y_lang
@@ -502,7 +508,9 @@ def _(mo):
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
-        keras.layers.Input(shape=(2,)),
+        keras.layers.Input(shape=(3,)),
+    # ajouter une couche au réseau défini en Keras
+        Dense(4, activation='tanh'),
         Dense(1, activation='sigmoid')
     ])
 
@@ -527,6 +535,57 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell
+def _(X_lang, nn, torch, y_lang):
+    # reprendre le code en pytorch pour effectuer la classification de langues donnée en keras.
+
+    X_torch=torch.tensor(X_lang, dtype=torch.float32)
+    y_torch=torch.tensor(y_lang,dtype=torch.float32).unsqueeze(1)
+
+    model_torch=nn.Linear(3,1)
+
+    optimizer = torch.optim.SGD(
+        model_torch.parameters(),
+        lr=0.01
+    )
+
+    loss_fn = nn.BCEWithLogitsLoss()
+
+    for _ in range(1000):
+        optimizer.zero_grad()
+
+        logits = model_torch(X_torch)
+        loss = loss_fn(logits, y_torch)
+
+        loss.backward()
+        optimizer.step()
+
+    with torch.no_grad():
+        probabilities = torch.sigmoid(model_torch(X_torch))
+        predictions = (probabilities > 0.5).float()
+
+        accuracy = (
+            predictions == y_torch
+        ).float().mean().item()
+
+    accuracy
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## Difficultés
+
+    J'ai eu quelques difficultés au début avec l'environnement Python, notamment pour faire fonctionner Keras avec le backend PyTorch et pour installer certaines dépendances comme polars.
+
+    J'ai également eu besoin de clarifier la différence entre les logits et les probabilités, ainsi que le rôle de BCEWithLogitsLoss en PyTorch par rapport à l'utilisation d'une activation sigmoid avec binary_crossentropy dans Keras.
+
+    Après avoir repris le code étape par étape, la logique de l'entraînement et la correspondance entre Keras et PyTorch sont plus claires.
+    """)
     return
 
 
