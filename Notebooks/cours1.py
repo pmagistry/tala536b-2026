@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -91,6 +91,26 @@ def _(mo, torch):
     return X_lin, y_lin
 
 
+@app.cell
+def _(y_lin):
+    y_lin
+    return
+
+
+@app.cell
+def _(X_lin):
+    X_lin
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    On a créé un jeu de données de sorte (par sa définition mathématique) à ce qu'on puisse séparer les données de label y=0 et y=1 via leurs coordonnées (x1, x2) de façon linéaire (un peut tracer une droite qui sépare les labels y=0 de deux y=1).
+    """)
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -102,40 +122,69 @@ def _(mo):
 @app.cell
 def _(X_lin, mo, torch, y_lin):
     def train_perceptron(X, y, eta=1.0, max_epochs=100):
-        w = torch.zeros(X.shape[1])
-        b = 0.0
+        w = torch.zeros(X.shape[1]) # au départ les poids sont réglés à 0
+        b = 0.0 # biais aussi réglé à 0
         for epoch in range(max_epochs):
             errors = 0
             for i in range(X.shape[0]):
                 xi, yi = X[i], y[i].item()
-                yhat = 1.0 if (w @ xi + b) > 0 else 0.0
-                update = eta * (yi - yhat)   # dans {-1, 0, +1}
+                yhat = 1.0 if (w @ xi + b) > 0 else 0.0 # prédiction, @ est le prod matriciel, seuil à 0 (pour Heaviside)
+                update = eta * (yi - yhat)   # (yi - yhat) dans {-1, 0, +1}
                 if update != 0:
-                    w += update * xi
+                    w += update * xi # plusieurs dimensions ! on change le pois en rappord avec xi
                     b += update
                     errors += 1
             if errors == 0:
+                # entraînement satisfaisant : il n'y a plus d'erreurs de prédiction
+                # on arrête là
                 break
-        return w, b, epoch
+        return w, b, epoch # epoch = nb de phases d'entraînement vrm effectuées ?
 
+    # on enregistre les poids après l'entraînement avec eta=1.0 et 100 epochs au max : 
     w_perc, b_perc, n_ep = train_perceptron(X_lin, y_lin)
     mo.md("entrainement d'un perceptron")
     return b_perc, w_perc
 
 
 @app.cell
+def _(y_lin):
+    y_lin
+    return
+
+
+@app.cell
+def _(y_lin):
+    m = y_lin == 1
+    m # mi=True si yi==1, False sinon
+    return (m,)
+
+
+@app.cell
+def _(m):
+    ~m # tilde m = le contraire de m
+    return
+
+
+@app.cell
 def _(np, plt, w_perc):
     def plot_artifical_data(X, y, w, b, title="données et modèle linéaires"):
         fig, ax = plt.subplots(figsize=(5, 4))
-        m = y == 1
+        m = y == 1 # array qui contient 1 si y==1, 0 sinon dans l'ordre de y
+
+        # les coordonnées qui valent True (classe 1) : on affiche en rouge
         ax.scatter(X[m, 0], X[m, 1], c="tab:red", s=15, label="classe 1")
+    
+        # les coordonnées qui valent False (classe 0) : on affiche en bleu
         ax.scatter(X[~m, 0], X[~m, 1], c="tab:blue", s=15, label="classe 0")
-        xs = np.linspace(-3, 3, 50)
+    
+        xs = np.linspace(-3, 3, 50) # ensemble de points pour lesquels on va tracer 
+                          # la ligne de séparation faite par le perceptron
         if abs(w_perc[1]) > 1e-8:
             ax.plot(xs, -(w[0] * xs + b) / w[1], "k-", lw=2)
         ax.set_title(title)
         ax.legend()
-        plt
+        plt # marche pas tel quel
+        plt.show() # afficher les points et la limite faite par le perceptron (poids appris)
         return fig
 
     return (plot_artifical_data,)
@@ -175,7 +224,7 @@ def _(fig_perc, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2. Le neurone unique entraîné par SGD
+    ## 2. Le neurone unique entraîné par SGD (Stochastic Gradient Descent - descente de gradient)
 
     **Prédiction** — probabilité continue :
 
@@ -183,7 +232,7 @@ def _(mo):
     p = \sigma(w \cdot x + b) \in \, ]0, 1[
     $$
 
-    **Fonction de coût** — entropie croisée binaire, différentiable :
+    **Fonction de coût** ($L$ pour "Loss" function) — entropie croisée binaire, différentiable :
 
     $$
     L = -\left[ y \log p + (1 - y) \log(1 - p) \right]
@@ -194,13 +243,14 @@ def _(mo):
     $$
     w \leftarrow w - \eta \, \frac{\partial L}{\partial w}
     $$
+    où $\eta$ est la taille de pas. On descend le gradient, où $\frac{\partial L}{\partial w}$ est le gradient de $L$ par rapport aux poids.
 
     Le seuil dur a disparu du calcul : le gradient
     $\partial L / \partial w = (p - y)\, x$ **transporte
     l'information d'erreur à travers tout le réseau**.
 
-    C'est ce qui rend la méthode généralisable par
-    rétropropagation — contrairement à la règle du perceptron.
+    C'est ce qui rend la méthode **généralisable par
+    rétropropagation** — contrairement à la règle du perceptron.
     """)
     return
 
@@ -217,23 +267,28 @@ def _(mo):
 def _(X_lin, mo, nn, torch, y_lin):
     def build_and_train_single_neuron(X, y):
         # building the "model"
-        single_neuron = nn.Linear(2, 1)
+        single_neuron = nn.Linear(2, 1) # I guess prend 2 arguments et sort une prédiction?
+        # oui : https://docs.pytorch.org/docs/2.14/generated/torch.nn.Linear.html
+        # 2 = size of input sample, 1 = size of output sample
 
         # training
-        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
-        loss_fn = nn.BCEWithLogitsLoss()
+        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1) # gradient descent
+        loss_fn = nn.BCEWithLogitsLoss() # continuous
         y_col = y.unsqueeze(1)
 
         for _ in range(500):
             opt.zero_grad()
-            loss = loss_fn(single_neuron(X), y_col)
-            loss.backward()
-            opt.step()
+            loss = loss_fn(single_neuron(X), y_col) # coût entre la prédiction et le gold
+            loss.backward() # backpropagation de la descente de gradient pour adapter
+                          # tous les poids / paramètres à partir de la perte calculée
+            opt.step() # on fait évoluer les coeffs (avance d'un step/pas)
 
         # pseudo-evaluation
         with torch.no_grad():
+            # .no_grad parce qu'on veut s'assurer qu'on est en inférence (pas de train)
+            # mesure de l'accuracy
             acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
-        return single_neuron, acc
+        return single_neuron, acc # renvoie la couche neuronale entraînée avec sa précision
     single, acc = build_and_train_single_neuron(X_lin, y_lin)
     mo.md("code d'entraînement d'un unique neurone")
     return (single,)
@@ -280,6 +335,8 @@ def _(mo):
     ## 3. La limite : les données non linéairement séparables
 
     Exemple minimal : **XOR** — 4 points, 2 classes.
+
+    (XOR = exclusive OR → vaut True si $x_1$ et $x_2$ sont en "ou exclusif")
 
     | $x_1$ | $x_2$ | $y$ |
     |-------|-------|-----|
@@ -330,25 +387,32 @@ def _(nn, torch):
 
     # MLP in pytorch (object oriented version)
     class MLP(nn.Module):
+        # Module = base class for all NN modules
+        # https://docs.pytorch.org/docs/2.14/generated/torch.nn.Module.html
+    
         def __init__(self):
             super().__init__()
-            self.hidden = nn.Linear(2, 2)
-            self.out = nn.Linear(2, 1)
+            self.hidden = nn.Linear(2, 2) # cf W1 ?
+            self.out = nn.Linear(2, 1) # cf W2
 
         def forward(self, x):
-            return self.out(torch.tanh(self.hidden(x)))
+            return self.out(torch.tanh(self.hidden(x))) # on glisse une tanh entre les couches linéaires
+            # mais juste dans le forward ?? qu'est-ce que ça veut dire ?
 
-    mlp = MLP()
+    mlp = MLP() # on instancie un objet de la classe MLP créée ci-dessus
 
     # training in pytorch
-    opt = torch.optim.SGD(mlp.parameters(), lr=0.5)
+    opt = torch.optim.SGD(mlp.parameters(), lr=0.5) # d'où sortent mlp.parameters()? 
+                                                    # de la superclasse ?
     loss_fn = nn.BCEWithLogitsLoss()
 
     for _ in range(5000):
-        opt.zero_grad()
-        loss = loss_fn(mlp(X_xor), y_xor)
-        loss.backward()
-        opt.step()
+        opt.zero_grad() # inférence seule pour le calcul de la perte en l'état
+        loss = loss_fn(mlp(X_xor), y_xor) # comparaison avec la loss fn choisie
+                                          # de la prédiction donnée par le mlp pour les X
+                                          # vs. le y visés (y_xor)
+        loss.backward()  # backpropagation pour améliorer les poids étant donné la perte
+        opt.step()  # en fait c'est ça qui agit sur les poids ? pas sûre
 
     # pseudo-evaluation
     with torch.no_grad():
@@ -462,30 +526,33 @@ def _(mo, np):
         data = []
         with open("./corpus.txt") as file:
             for line in file:
-                label, text = line.strip().split(" ",1)
+                label, text = line.strip().split(" ",1) # on ne fait qu'1 split
                 n_th = text.count("th")
                 n_en = text.count("en")
                 l = len(text)
                 instance = {"label":label, "th": n_th / l, "en": n_en /l}
-                data.append(instance)
+                data.append(instance) # data est une liste de dictionnaires
         return data
 
-    data_lang = load_data()[:200]
+    data_lang = load_data()[:200] # on charge les 200 premiers exemples
 
     # normalisation
     def normalise_data(dataset):
-        for k in dataset[0].keys():
-            if k != 'label':
-                mean = np.mean([d[k] for d in dataset])
-                std = np.std([d[k] for d in dataset])
+        for k in dataset[0].keys(): # k prend les valeurs : "label", "th", "en"
+            if k != 'label': # les "coordonnées" du texte (comptes de th et en)
+                mean = np.mean([d[k] for d in dataset]) # moyenne des valeurs de th et en
+                std = np.std([d[k] for d in dataset]) # ecart-type des valeurs de th et en
                 for d in dataset:
-                    d[k] = (d[k]- mean) / std
+                    d[k] = (d[k]- mean) / std # on normalise tous les compteurs
+                              # ça évite par ex que les compteurs de "th" soient énorme 
+                              # par rapport aux compteurs "en"
 
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X_lang = np.array([[d['th'], d['en']] for d in data_lang]) 
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    # on convertit les labels "deu" en 0.0 (float) et "eng" en 1.0
     mo.md("essayez avec et sans normalisation !")
     return X_lang, y_lang
 
@@ -527,6 +594,22 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Maintenant on veut pouvoir faire la classification de langue (inspiré du code PyTorch précédent)
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    On teste d'abord sur les données sur lesquelles on a entrainé le model (avec fit).
+    """)
     return
 
 
