@@ -19,5 +19,8 @@
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
-...
+Je n'ai malheuresement pas eu le temps de bien m'imprégner du code avant la deadline. Je n'ai pas encore accès à Moodle (inscription en R&D, en attente de validation). 
+Serait-il possible d'avoir une deadline du mardi au lundi suivant ? Si ce n'est pas possible, j'essayerai de mieux m'organiser les semaines suivantes !
+Je n'ai pas pu modifier le code avant dimanche 23h59. J'essayerai avant la séance de mon côté, plutôt que de bacler mon travail et de passer à côté des points clefs. 
+
+Sinon, tout est parfait, merci beaucoup !
