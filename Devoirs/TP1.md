@@ -11,7 +11,7 @@
 - [x] s'assurer que l'on comprend le code du notebook ✅ 2026-09-27
 - [x] essayer de reprendre le code en pytorch pour effectuer la classification de langues donnée en keras. ✅ 2026-09-27
 	- ça veut dire évaluer la classification après entraînement ???
-- [ ] essayer d'ajouter une couche au réseau défini en Keras
+- [x] essayer d'ajouter une couche au réseau défini en Keras ✅ 2026-09-27
 - [ ] essayer d'ajouter un troisième bigramme de lettre en entrée du réseau.
 	- par exemple "de" (ex der, den, dem)
 

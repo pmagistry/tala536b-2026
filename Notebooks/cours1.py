@@ -570,6 +570,7 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
         keras.layers.Input(shape=(2,)),
+        Dense(1), # ajout d'une couche, https://stackoverflow.com/questions/46572674/keras-sequential-model-input-layer
         Dense(1, activation='sigmoid')
     ])
 
