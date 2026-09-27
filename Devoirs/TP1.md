@@ -15,9 +15,11 @@
 
 ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
 
+
 ...
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
+Pour que le code fonctionne sans que je modifie le chemin d'origine qui est (`./corpus.txt`), j'ai ajouté les fichiers `corpus.txt` et `corpus6.txt` directement dans le dossier `tala536b-2026` (à la racine du dépôt que j'ai cloné).
 
-(ou dites si tout va bien !)
+
 ...

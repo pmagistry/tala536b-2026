@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+corpus.txt
+corpus6.txt
+.DS_Store
