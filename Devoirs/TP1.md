@@ -15,9 +15,12 @@
 
 ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
 
-...
+Pour classer les documents on pourrait :
+- utilisé scikit-learn car il permet déjà de séparer par domaine.
+- faire un dictionnaire de langue, avec des mots les plus courants dans les langues, un peu comme les stopwords.
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
-...
+J'ai eu quelques problèmes pour charger mon environnement et keras car il cherchait un "tree" que je n'avais pas, j'ai donc ajouté dans la liste des programmes à installer `dm-tree`.
+
+Pour comprendre le code, j'ai du le reprendre à la main pour comprendre les différentes fonctions, pourquoi elles étaient utilisées. Néanmoins, je ne suis pas sure de bien avoir compris comment les utiliser pour reprendre le code en pytorch.
