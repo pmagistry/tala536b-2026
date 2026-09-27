@@ -15,9 +15,8 @@
 
 ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
 
-...
+Entrainer un modele sur un corpus de trois langues, pour différencier les langues. On pourrait tokenizer les documents, histoire de voir si les representations sont plus facile a traitr. Ou juste sur les document entiers. A voir.
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
-...
+C'est globalement assez clair, sur la manière d'utiliser les différentes fonctions. s'il est possible de pousser l'explication des fonctions, pour pouvoir les maitriser mieux, ce serait preferable je pense.
