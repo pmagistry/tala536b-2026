@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -460,7 +460,7 @@ def _(mo, np):
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("./Notebooks/corpus.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
