@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -465,8 +465,9 @@ def _(mo, np):
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_os = text.count("os")
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "os": n_os/l}
                 data.append(instance)
         return data
 
@@ -484,7 +485,7 @@ def _(mo, np):
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X_lang = np.array([[d['th'], d['en'], d['os']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
     return X_lang, y_lang
@@ -502,7 +503,8 @@ def _(mo):
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
-        keras.layers.Input(shape=(2,)),
+        keras.layers.Input(shape=(3,)),
+        Dense(4, activation='tanh'),
         Dense(1, activation='sigmoid')
     ])
 
@@ -527,6 +529,53 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Construction et entraînement du modèle en Pytorch
+    """)
+    return
+
+
+@app.cell
+def _(X_lang, nn, torch, y_lang):
+    def train_with_pytorch(X, y):
+        # conversion des tableaux numpy en tensors Pytorch
+        X_tensor = torch.tensor(X, dtype=torch.float32)
+        y_tensor = torch.tensor(y, dtype=torch.float32)
+
+        # création du modèle (un neurone)
+        single_neuron = nn.Linear(3, 1)
+
+        # création de l'optimiseur SGD
+        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
+
+        # création de la fonction de perte (binary cross-entropy)
+        loss_fn = nn.BCEWithLogitsLoss()
+
+        # ajout d'une dimension à y pour que ce soit compatible avec la sortie du modèle
+        y_col = y_tensor.unsqueeze(1)
+
+        for _ in range(500):
+            opt.zero_grad() # suppression des anciens gradients
+            loss = loss_fn(single_neuron(X_tensor), y_col) # prédictions du modèle
+            loss.backward() # rétropropagation (calcule les gradients de la perte par rapport aux paramètres du modèle)
+            opt.step()  # application des corrections aux paramètres
+
+        with torch.no_grad():
+            acc = ((torch.sigmoid(single_neuron(X_tensor)) > 0.5).float() == y_col).float().mean().item()
+        return single_neuron, acc
+    
+    train_with_pytorch(X_lang, y_lang)
+
+    return
+
+
+@app.cell
+def _():
     return
 
 
