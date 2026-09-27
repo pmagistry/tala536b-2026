@@ -15,6 +15,7 @@
 
 ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
 
+- On pourrait identifier les paires de token (bigrammes, n-grammes) en identifiant les paires les plus fréquentes pour chaque langue, au lieu de les saisir manuellement. 
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
