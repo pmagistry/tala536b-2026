@@ -12,17 +12,15 @@
 - [x] essayer de reprendre le code en pytorch pour effectuer la classification de langues donnée en keras. ✅ 2026-09-27
 	- ça veut dire évaluer la classification après entraînement ???
 - [x] essayer d'ajouter une couche au réseau défini en Keras ✅ 2026-09-27
-- [ ] essayer d'ajouter un troisième bigramme de lettre en entrée du réseau.
+- [x] essayer d'ajouter un troisième bigramme de lettre en entrée du réseau. ✅ 2026-09-27
 	- par exemple "de" (ex der, den, dem)
 
 ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
 
-...
+- avec des compteurs mots type "stopwords" très courants de chaque langue
+- couche cachée non-linéaire ..?
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
-
-(ou dites si tout va bien !)
-...
 
 - que fait `.item()` ? (dans `train_perceptron`)
 - pourquoi `y_col = y.unsqueeze(1)` ? (dans la définition de `build_and_train_single_neuron(X, y)`)
