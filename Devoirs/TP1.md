@@ -21,5 +21,5 @@
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-Je n'ai pas compris les différences entre keras et pytorch ni comment vraiment changer l'un pour l'autre. J'ai aussi du mal à comprendre concrétement ce qu'est le "MLP", j'ai cru comprendre que c'était un empilement de couche où chaque couche correspond a un ensemble de caractéritique,que le MLP retourne donc les résultats qui répondent à toutes ces caractéristiques mais je n'arrive pas a visualiser son fonctionnement de manière plus précise.
+Je n'ai pas compris les différences entre keras et pytorch ni comment vraiment changer l'un pour l'autre. J'ai aussi du mal à comprendre concrétement ce qu'est le "MLP", j'ai cru comprendre que c'était un empilement de couche où chaque couche correspond a un ensemble dn évènement, et que le MLP retourne donc les résultats qui répondent à toutes ces caractéristiques mais je n'arrive pas a visualiser son fonctionnement de manière plus précise.
 Dans la globalité, j'ai l'impression de n'avoir compris chaque point du notebook que de manière très superficielle même après un certain temps passé dessus.
