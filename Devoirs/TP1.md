@@ -20,4 +20,4 @@
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
 (ou dites si tout va bien !)
-...
+J'ai pris un assez long temps pour lire la documentation de pytorch et keras. J'avais déjà utilisé pytorch pour un projet l'année dernière mais c'était avec les options de base et je n'avais pas pris le temps de comprendre réellement comment ça fonctionne.
