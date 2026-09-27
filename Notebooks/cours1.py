@@ -86,7 +86,9 @@ def _(mo, torch):
 
     N = 100
     X_lin = torch.randn(N, 2)
+    print(X_lin)
     y_lin = (X_lin[:, 0] + 2 * X_lin[:, 1] > 0).float()
+    print((2 * X_lin[:, 1] > 0).float())
     mo.md("Données artificielles, linéairement séparables dans R^2")
     return X_lin, y_lin
 
@@ -223,6 +225,7 @@ def _(X_lin, mo, nn, torch, y_lin):
         opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
         loss_fn = nn.BCEWithLogitsLoss()
         y_col = y.unsqueeze(1)
+        print(y_col)
 
         for _ in range(500):
             opt.zero_grad()
@@ -324,9 +327,9 @@ def _(mo):
 
 @app.cell
 def _(nn, torch):
-    # XOR Data
-    X_xor = torch.tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]])
-    y_xor = torch.tensor([[0.], [1.], [1.], [0.]])
+    # XOR Data, j'ai mis en float64 pour charger les données du corpus
+    X_xor = torch.tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]], dtype=torch.float64)
+    y_xor = torch.tensor([[0.], [1.], [1.], [0.]], dtype=torch.float64)
 
     # MLP in pytorch (object oriented version)
     class MLP(nn.Module):
@@ -334,6 +337,7 @@ def _(nn, torch):
             super().__init__()
             self.hidden = nn.Linear(2, 2)
             self.out = nn.Linear(2, 1)
+            self.double()  # pour passer en float64
 
         def forward(self, x):
             return self.out(torch.tanh(self.hidden(x)))
@@ -354,39 +358,48 @@ def _(nn, torch):
     with torch.no_grad():
         acc_mlp = ((torch.sigmoid(mlp(X_xor)) > 0.5).float() == y_xor).float().mean().item()
         hidden_xor = torch.tanh(mlp.hidden(X_xor))
-    return X_xor, hidden_xor, mlp, y_xor
+    return MLP, X_xor, hidden_xor, loss_fn, mlp, opt, y_xor
 
 
 @app.cell(hide_code=True)
 def _(X_xor, hidden_xor, mlp, np, plt, torch, y_xor):
-    xx, yy = np.meshgrid(np.linspace(-0.5, 1.5, 300), np.linspace(-0.5, 1.5, 300))
-    grid = torch.tensor(np.c_[xx.ravel(), yy.ravel()], dtype=torch.float32)
+    # c'est ignoble mais j'ai envie de réutiliser ce tracage de graphe
+    def plot_torch(X_xor, y_xor, hidden_xor):
+        xx, yy = np.meshgrid(np.linspace(-0.5, 1.5, 300), np.linspace(-0.5, 1.5, 300))
+        grid = torch.tensor(np.c_[xx.ravel(), yy.ravel()], dtype=torch.float64)  # modif float64
+    
+        with torch.no_grad():
+            p = torch.sigmoid(mlp(grid)).reshape(xx.shape).numpy()
+    
+        fig_xor, axes = plt.subplots(1, 2, figsize=(10, 4))
+        try:
+            yf = y_xor.squeeze(1)
+        except:
+            yf = y_xor
+    
+        axes[0].contourf(xx, yy, p, levels=20, cmap="coolwarm", alpha=0.7)
+        axes[0].contour(xx, yy, p, levels=[0.5], colors="k", linewidths=2)
+        axes[0].scatter(X_xor[yf == 0, 0], X_xor[yf == 0, 1], c="tab:blue", s=120, edgecolors="k", label="classe 0")
+        axes[0].scatter(X_xor[yf == 1, 0], X_xor[yf == 1, 1], c="tab:red", s=120, edgecolors="k", marker="s", label="classe 1")
+        axes[0].set_title("Espace d'entrée : frontière non linéaire")
+        axes[0].legend()
+    
+        axes[1].scatter(hidden_xor[yf == 0, 0], hidden_xor[yf == 0, 1], c="tab:blue", s=120, edgecolors="k", label="classe 0")
+        axes[1].scatter(hidden_xor[yf == 1, 0], hidden_xor[yf == 1, 1], c="tab:red", s=120, edgecolors="k", marker="s", label="classe 1")
+        w = mlp.out.weight.data.squeeze().numpy()
+        b = mlp.out.bias.data.item()
+        hh = np.linspace(-1.2, 1.2, 50)
+        axes[1].plot(hh, -(w[0] * hh + b) / w[1], "k--", lw=2)
+        axes[1].set_title("Espace caché : linéairement séparable !")
+        axes[1].set_xlabel("h1"); axes[1].set_ylabel("h2"); axes[1].legend()
 
-    with torch.no_grad():
-        p = torch.sigmoid(mlp(grid)).reshape(xx.shape).numpy()
+        return fig_xor
+    
+        # plt.tight_layout()
+        # mo.mpl.interactive(fig_xor)
 
-    fig_xor, axes = plt.subplots(1, 2, figsize=(10, 4))
-    yf = y_xor.squeeze(1)
-
-    axes[0].contourf(xx, yy, p, levels=20, cmap="coolwarm", alpha=0.7)
-    axes[0].contour(xx, yy, p, levels=[0.5], colors="k", linewidths=2)
-    axes[0].scatter(X_xor[yf == 0, 0], X_xor[yf == 0, 1], c="tab:blue", s=120, edgecolors="k", label="classe 0")
-    axes[0].scatter(X_xor[yf == 1, 0], X_xor[yf == 1, 1], c="tab:red", s=120, edgecolors="k", marker="s", label="classe 1")
-    axes[0].set_title("Espace d'entrée : frontière non linéaire")
-    axes[0].legend()
-
-    axes[1].scatter(hidden_xor[yf == 0, 0], hidden_xor[yf == 0, 1], c="tab:blue", s=120, edgecolors="k", label="classe 0")
-    axes[1].scatter(hidden_xor[yf == 1, 0], hidden_xor[yf == 1, 1], c="tab:red", s=120, edgecolors="k", marker="s", label="classe 1")
-    w = mlp.out.weight.data.squeeze().numpy()
-    b = mlp.out.bias.data.item()
-    hh = np.linspace(-1.2, 1.2, 50)
-    axes[1].plot(hh, -(w[0] * hh + b) / w[1], "k--", lw=2)
-    axes[1].set_title("Espace caché : linéairement séparable !")
-    axes[1].set_xlabel("h1"); axes[1].set_ylabel("h2"); axes[1].legend()
-
-    # plt.tight_layout()
-    # mo.mpl.interactive(fig_xor)
-    return (fig_xor,)
+    fig_xor = plot_torch(X_xor, y_xor, hidden_xor)
+    return fig_xor, plot_torch
 
 
 @app.cell(hide_code=True)
@@ -410,15 +423,10 @@ def _(fig_xor, mo):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Données réelles et implémentation en Keras
+    # Données réelles et implémentation en Keras (et en pytorch)
     """)
     return
 
@@ -465,29 +473,80 @@ def _(mo, np):
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_gl = text.count("gl")
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "gl": n_gl}
                 data.append(instance)
         return data
 
     data_lang = load_data()[:200]
+    print(data_lang)
 
     # normalisation
     def normalise_data(dataset):
         for k in dataset[0].keys():
             if k != 'label':
+                print(k)
                 mean = np.mean([d[k] for d in dataset])
                 std = np.std([d[k] for d in dataset])
                 for d in dataset:
                     d[k] = (d[k]- mean) / std
 
     normalise_data(data_lang)
+    print("data_lang:", data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X_lang = np.array([[d['th'], d['en'], d['gl']] for d in data_lang])
+    print("X_lang:", X_lang)
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    print("y_lang:", y_lang)
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
+    return X_lang, data_lang, y_lang
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Construction et entraînement du modèle en pytorch
+    """)
+    return
+
+
+@app.cell
+def _(MLP, data_lang, loss_fn, opt, torch):
+    X_lang2 = torch.tensor([[d['th'], d['en']] for d in data_lang])
+    y_lang2 = torch.tensor([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    y2 = y_lang2.unsqueeze(1)  # on passe d'un tensor(200) à un tensor(200, 1), ce qui semble régler un problème que je rencontrais
+
+    mlp2 = MLP()
+
+    for _ in range(5000):
+        opt.zero_grad()
+        loss2 = loss_fn(mlp2(X_lang2), y2)
+        loss2.backward()
+        opt.step()
+
+    # pseudo-evaluation
+    with torch.no_grad():
+        acc_mlp2 = ((torch.sigmoid(mlp2(X_lang2)) > 0.5).float() == y_lang2).float().mean().item()
+        hidden = torch.tanh(mlp2.hidden(X_lang2))
+
+    return X_lang2, acc_mlp2, hidden, y_lang2
+
+
+@app.cell
+def _(X_lang2, hidden, plot_torch, y_lang2):
+    # qui aurait pu prédire qu'on ne peut pas juste reprendre un autre graphe. je ne sais pas comment en faire un d'exploitable
+    fig_lang2 = plot_torch(X_lang2, y_lang2, hidden)
+    fig_lang2
+    return
+
+
+@app.cell
+def _(acc_mlp2):
+    # c'est un peu mieux que le hasard !
+    print(acc_mlp2)
+    return
 
 
 @app.cell(hide_code=True)
@@ -502,7 +561,8 @@ def _(mo):
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
-        keras.layers.Input(shape=(2,)),
+        keras.layers.Input(shape=(3,)),
+        Dense(1, activation='sigmoid'),
         Dense(1, activation='sigmoid')
     ])
 
@@ -526,7 +586,7 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Affichage des poids appris
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nPoids pour 'gl_freq' : {weights[2][0]:.4f}\n\nBiais : {bias[0]:.4f}")
     return
 
 
