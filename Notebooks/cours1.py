@@ -173,10 +173,10 @@ def _(np, plt, w_perc):
 
         # les coordonnées qui valent True (classe 1) : on affiche en rouge
         ax.scatter(X[m, 0], X[m, 1], c="tab:red", s=15, label="classe 1")
-    
+
         # les coordonnées qui valent False (classe 0) : on affiche en bleu
         ax.scatter(X[~m, 0], X[~m, 1], c="tab:blue", s=15, label="classe 0")
-    
+
         xs = np.linspace(-3, 3, 50) # ensemble de points pour lesquels on va tracer 
                           # la ligne de séparation faite par le perceptron
         if abs(w_perc[1]) > 1e-8:
@@ -389,7 +389,7 @@ def _(nn, torch):
     class MLP(nn.Module):
         # Module = base class for all NN modules
         # https://docs.pytorch.org/docs/2.14/generated/torch.nn.Module.html
-    
+
         def __init__(self):
             super().__init__()
             self.hidden = nn.Linear(2, 2) # cf W1 ?
@@ -554,7 +554,7 @@ def _(mo, np):
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     # on convertit les labels "deu" en 0.0 (float) et "eng" en 1.0
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
+    return X_lang, data_lang, load_data, normalise_data, y_lang
 
 
 @app.cell(hide_code=True)
@@ -594,7 +594,7 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
-    return
+    return bias, model, weights
 
 
 @app.cell(hide_code=True)
@@ -608,8 +608,27 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    On teste d'abord sur les données sur lesquelles on a entrainé le model (avec fit).
+    On teste sur toutes les données à partir de l'entraînement fait sur une partie des données
     """)
+    return
+
+
+@app.cell
+def _(bias, data_lang, load_data, mo, model, normalise_data, np, weights):
+    data_lang_full = load_data() # on charge tous les exemples
+
+    normalise_data(data_lang_full)
+
+    # encodage des données
+    X_lang_full = np.array([[d['th'], d['en']] for d in data_lang]) 
+    y_lang_full = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    # on convertit les labels "deu" en 0.0 (float) et "eng" en 1.0
+
+    # pseudo-Évaluation du modèle
+    loss_keras_full, acc_keras_full = model.evaluate(X_lang_full, y_lang_full, verbose=0)
+
+    # Affichage des poids appris
+    mo.md(f"Précision du modèle : {acc_keras_full:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
     return
 
 
