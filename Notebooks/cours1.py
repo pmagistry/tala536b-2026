@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -17,6 +17,7 @@ def _():
     import torch.nn as nn
     import numpy as np
     import matplotlib.pyplot as plt
+
     # torch.manual_seed(0)
     return nn, np, plt, torch
 
@@ -83,7 +84,6 @@ def _(mo):
 
 @app.cell
 def _(mo, torch):
-
     N = 100
     X_lin = torch.randn(N, 2)
     y_lin = (X_lin[:, 0] + 2 * X_lin[:, 1] > 0).float()
@@ -109,17 +109,17 @@ def _(X_lin, mo, torch, y_lin):
             for i in range(X.shape[0]):
                 xi, yi = X[i], y[i].item()
                 yhat = 1.0 if (w @ xi + b) > 0 else 0.0
-                update = eta * (yi - yhat)   # dans {-1, 0, +1}
+                update = eta * (yi - yhat)  # dans {-1, 0, +1}
                 if update != 0:
                     w += update * xi
                     b += update
                     errors += 1
             if errors == 0:
                 break
-        return w, b, epoch
+        return w, b, epoch + 1
 
     w_perc, b_perc, n_ep = train_perceptron(X_lin, y_lin)
-    mo.md("entrainement d'un perceptron")
+    mo.md(f"entrainement d'un perceptron : {n_ep} epochs")
     return b_perc, w_perc
 
 
@@ -151,8 +151,7 @@ def _(X_lin, b_perc, plot_artifical_data, w_perc, y_lin):
 def _(fig_perc, mo):
     mo.vstack(
         [
-            mo.md(
-                r"""
+            mo.md(r"""
                 ## Le perceptron en action
 
                 Données linéairement séparables : l'algorithme converge
@@ -164,8 +163,7 @@ def _(fig_perc, mo):
                   de l'ordre des exemples ;
                 - si les données **ne sont pas séparables**, il cycle
                   indéfiniment sans jamais se stabiliser.
-                """
-            ),
+                """),
             fig_perc,
         ]
     )
@@ -232,8 +230,14 @@ def _(X_lin, mo, nn, torch, y_lin):
 
         # pseudo-evaluation
         with torch.no_grad():
-            acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
+            acc = (
+                ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col)
+                .float()
+                .mean()
+                .item()
+            )
         return single_neuron, acc
+
     single, acc = build_and_train_single_neuron(X_lin, y_lin)
     mo.md("code d'entraînement d'un unique neurone")
     return (single,)
@@ -241,10 +245,13 @@ def _(X_lin, mo, nn, torch, y_lin):
 
 @app.cell
 def _(X_lin, plot_artifical_data, single, y_lin):
-
-    fig_sgd = plot_artifical_data(X_lin, y_lin,
-                                  w=single.weight.data.squeeze().numpy(),
-                                  b=single.bias.data.item(), title="1 neuron, SGD")
+    fig_sgd = plot_artifical_data(
+        X_lin,
+        y_lin,
+        w=single.weight.data.squeeze().numpy(),
+        b=single.bias.data.item(),
+        title="1 neuron, SGD",
+    )
     return (fig_sgd,)
 
 
@@ -252,8 +259,7 @@ def _(X_lin, plot_artifical_data, single, y_lin):
 def _(fig_sgd, mo):
     mo.vstack(
         [
-            mo.md(
-                r"""
+            mo.md(r"""
                 ## SGD : même frontière linéaire, autre façon d'apprendre les poids.
 
                 La frontière reste un hyperplan — un neurone calcule
@@ -266,8 +272,7 @@ def _(fig_sgd, mo):
                   coût, là où le perceptron cycle ;
                 - il continue à optimiser après la séparation et tend
                   vers une frontière à grande marge (lien avec les SVM).
-                """
-            ),
+                """),
             fig_sgd,
         ]
     )
@@ -325,8 +330,8 @@ def _(mo):
 @app.cell
 def _(nn, torch):
     # XOR Data
-    X_xor = torch.tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]])
-    y_xor = torch.tensor([[0.], [1.], [1.], [0.]])
+    X_xor = torch.tensor([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]])
+    y_xor = torch.tensor([[0.0], [1.0], [1.0], [0.0]])
 
     # MLP in pytorch (object oriented version)
     class MLP(nn.Module):
@@ -352,7 +357,9 @@ def _(nn, torch):
 
     # pseudo-evaluation
     with torch.no_grad():
-        acc_mlp = ((torch.sigmoid(mlp(X_xor)) > 0.5).float() == y_xor).float().mean().item()
+        acc_mlp = (
+            ((torch.sigmoid(mlp(X_xor)) > 0.5).float() == y_xor).float().mean().item()
+        )
         hidden_xor = torch.tanh(mlp.hidden(X_xor))
     return X_xor, hidden_xor, mlp, y_xor
 
@@ -370,19 +377,51 @@ def _(X_xor, hidden_xor, mlp, np, plt, torch, y_xor):
 
     axes[0].contourf(xx, yy, p, levels=20, cmap="coolwarm", alpha=0.7)
     axes[0].contour(xx, yy, p, levels=[0.5], colors="k", linewidths=2)
-    axes[0].scatter(X_xor[yf == 0, 0], X_xor[yf == 0, 1], c="tab:blue", s=120, edgecolors="k", label="classe 0")
-    axes[0].scatter(X_xor[yf == 1, 0], X_xor[yf == 1, 1], c="tab:red", s=120, edgecolors="k", marker="s", label="classe 1")
+    axes[0].scatter(
+        X_xor[yf == 0, 0],
+        X_xor[yf == 0, 1],
+        c="tab:blue",
+        s=120,
+        edgecolors="k",
+        label="classe 0",
+    )
+    axes[0].scatter(
+        X_xor[yf == 1, 0],
+        X_xor[yf == 1, 1],
+        c="tab:red",
+        s=120,
+        edgecolors="k",
+        marker="s",
+        label="classe 1",
+    )
     axes[0].set_title("Espace d'entrée : frontière non linéaire")
     axes[0].legend()
 
-    axes[1].scatter(hidden_xor[yf == 0, 0], hidden_xor[yf == 0, 1], c="tab:blue", s=120, edgecolors="k", label="classe 0")
-    axes[1].scatter(hidden_xor[yf == 1, 0], hidden_xor[yf == 1, 1], c="tab:red", s=120, edgecolors="k", marker="s", label="classe 1")
+    axes[1].scatter(
+        hidden_xor[yf == 0, 0],
+        hidden_xor[yf == 0, 1],
+        c="tab:blue",
+        s=120,
+        edgecolors="k",
+        label="classe 0",
+    )
+    axes[1].scatter(
+        hidden_xor[yf == 1, 0],
+        hidden_xor[yf == 1, 1],
+        c="tab:red",
+        s=120,
+        edgecolors="k",
+        marker="s",
+        label="classe 1",
+    )
     w = mlp.out.weight.data.squeeze().numpy()
     b = mlp.out.bias.data.item()
     hh = np.linspace(-1.2, 1.2, 50)
     axes[1].plot(hh, -(w[0] * hh + b) / w[1], "k--", lw=2)
     axes[1].set_title("Espace caché : linéairement séparable !")
-    axes[1].set_xlabel("h1"); axes[1].set_ylabel("h2"); axes[1].legend()
+    axes[1].set_xlabel("h1")
+    axes[1].set_ylabel("h2")
+    axes[1].legend()
 
     # plt.tight_layout()
     # mo.mpl.interactive(fig_xor)
@@ -393,8 +432,7 @@ def _(X_xor, hidden_xor, mlp, np, plt, torch, y_xor):
 def _(fig_xor, mo):
     mo.vstack(
         [
-            mo.md(
-                f"""
+            mo.md(f"""
                 ## Démo : le MLP résout XOR 
 
                 **À gauche** : dans l'espace d'entrée, la frontière de
@@ -402,16 +440,10 @@ def _(fig_xor, mo):
 
                 **À droite** : les 4 points projetés dans l'espace caché $(h_1, h_2)$. 
                 La couche de sortie n'a plus qu'une droite à placer : la couche cachée a rendu XOR linéairement séparable.
-                """
-            ),
+                """),
             fig_xor,
         ]
     )
-    return
-
-
-@app.cell
-def _():
     return
 
 
@@ -436,13 +468,16 @@ def _(mo):
     from pathlib import Path
     import polars as pl
     import os
+
     os.environ["KERAS_BACKEND"] = "torch"
     import keras
     from keras.models import Sequential
     from keras.layers import Dense, Normalization
     from keras.optimizers import SGD
 
-    mo.md("une variable d'environnement vient définir le backend qui sera utilisé par Kera (torch, tensorflow ou jax)")
+    mo.md(
+        "une variable d'environnement vient définir le backend qui sera utilisé par Keras (torch, tensorflow ou jax)"
+    )
     return Dense, SGD, Sequential, keras
 
 
@@ -456,17 +491,22 @@ def _(mo):
 
 @app.cell
 def _(mo, np):
-
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("./corpora/corpus.txt") as file:
             for line in file:
-                label, text = line.strip().split(" ",1)
+                label, text = line.strip().split(" ", 1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_wh = text.count("wh")
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {
+                    "label": label,
+                    "th": n_th / l,
+                    "en": n_en / l,
+                    "wh": n_wh / l,
+                }
                 data.append(instance)
         return data
 
@@ -475,18 +515,19 @@ def _(mo, np):
     # normalisation
     def normalise_data(dataset):
         for k in dataset[0].keys():
-            if k != 'label':
+            if k != "label":
                 mean = np.mean([d[k] for d in dataset])
                 std = np.std([d[k] for d in dataset])
                 for d in dataset:
-                    d[k] = (d[k]- mean) / std
+                    d[k] = (d[k] - mean) / std
 
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
-    y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    X_lang = np.array([[d["th"], d["en"], d["wh"]] for d in data_lang])
+    y_lang = np.array([0.0 if d["label"] == "deu" else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
+    print(*data_lang[:10], sep="\n")
     return X_lang, y_lang
 
 
@@ -501,24 +542,30 @@ def _(mo):
 @app.cell
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
-    model = Sequential([
-        keras.layers.Input(shape=(2,)),
-        Dense(1, activation='sigmoid')
-    ])
+    model = Sequential(
+        [
+            keras.layers.Input(shape=(3,)),
+            Dense(10, activation=keras.activations.linear),
+            Dense(1, activation="sigmoid"),
+        ]
+    )
 
     # Compilation du modèle
     model.compile(
-        optimizer=SGD(),
-        loss='binary_crossentropy',
-        metrics=['accuracy']
+        optimizer=SGD(learning_rate=0.1),
+        loss="binary_crossentropy",
+        metrics=["accuracy"],
     )
 
     # Entraînement du modèle
-    model.fit(X_lang, y_lang,
-                        epochs=10, 
-                        verbose=1, 
-                        shuffle=True, 
-                        validation_split=0.2)
+    model.fit(
+        X_lang,
+        y_lang,
+        epochs=20,
+        verbose=True,
+        shuffle=True,
+        validation_split=0.2,
+    )
 
     # pseudo-Évaluation du modèle
     loss_keras, acc_keras = model.evaluate(X_lang, y_lang, verbose=0)
@@ -526,7 +573,83 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Affichage des poids appris
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    mo.md(f"""
+            Précision du modèle : {acc_keras:.2%}
+
+            Couche 1 :\n
+            Poids pour 'en_freq' : {weights[0][0]:.4f}\n
+            Poids pour 'th_freq' : {weights[1][0]:.4f}\n
+            Poids pour 'wh_freq' : {weights[2][0]:.4f}\n
+            Biais : {bias[0]:.4f} 
+        """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Construction et entraînement du modèle en pytorch
+    """)
+    return
+
+
+@app.cell
+def _(X_lang, nn, np, torch, y_lang):
+    # Conversion des matrices numpy en tensors pytorch
+    X_lang_t = torch.from_numpy(X_lang.astype(np.float32))
+    y_lang_t = torch.from_numpy(y_lang.astype(np.float32).reshape(y_lang.shape[0], 1))
+
+    # Construction du perceptron en pytorch
+    model_t = nn.Sequential(nn.Linear(2, 1))
+    learning_rate_t = 1
+    optimizer_t = torch.optim.SGD(model_t.parameters(), lr=learning_rate_t)
+
+    # Fonction coût
+    loss_fn_t = nn.BCEWithLogitsLoss()
+    n_epochs = 40
+
+    for i in range(n_epochs):
+        # prédiction
+        yhat_t = model_t(X_lang_t)
+
+        # mise à 0 des gradients
+        optimizer_t.zero_grad()
+        # coût
+        loss_t = loss_fn_t(yhat_t, y_lang_t)
+        if i == n_epochs - 1:
+            print(f"Coût final : {loss_t}")
+
+        # backpropagation
+        loss_t.backward()
+
+        # mise à jour des poids
+        optimizer_t.step()
+
+    weights_t = model_t[0].weight
+    print(weights_t)
+    return (model_t,)
+
+
+@app.cell
+def _(model_t, torch):
+    # test
+
+    def is_english(sentence):
+        sentence_tensor = torch.tensor(
+            [float(sentence.count("th")), float(sentence.count("en"))]
+        )
+
+        return (torch.sigmoid(model_t(sentence_tensor)) > 0.5)[0]
+
+    test_sentence = "Ernest Boulanger had studied at the Paris Conservatoire and, in 1835 at the age of 20, won the coveted Prix de Rome for composition. He wrote comic operas and incidental music for plays but was most widely known for his choral music. He achieved distinction as a director of choral groups, teacher of voice, and a member of choral competition juries. After years of rejection, in 1872 he was appointed to the Paris Conservatoire as professor of singing."
+    # test_sentence = 'm Jahr 1914 komponierte sie „Drei Stücke“ für Violoncello und Klavier, ein impressionistisches Werk mit drei Teilen jeweils eigenen Charakters. Der Pianist Raoul Pugno (1852–1914) setzte sich für Nadia Boulanger ein und führte unter ihrer Leitung ihre Rhapsodie variée für Klavier und Orchester auf. Auch komponierte er mit ihr gemeinsam eine Reihe von Werken wie den Liederzyklus der Heures claires („Helle Stunden“). Nach seinem Tod widmete Nadia Boulanger sich stärker der Musikpädagogik, Orchesterleitung und der Verbreitung des Werks ihrer Schwester Lili Boulanger. Ab 1921 unterrichtete sie an der École normale de musique de Paris und am neu gegründeten Conservatoire Américain in Fontainebleau. Im selben Jahr reiste sie erstmals in die USA, wo sie fortan regelmäßig Meisterkurse gab. Sie wurde eine der berühmtesten Kompositionslehrerinnen des 20. Jahrhunderts.'
+
+    print(f"Texte en anglais : {'Oui' if is_english(test_sentence) else 'Non'}")
+    return
+
+
+@app.cell
+def _():
     return
 
 
