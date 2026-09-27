@@ -395,12 +395,12 @@ def _(fig_xor, mo):
         [
             mo.md(
                 f"""
-                ## Démo : le MLP résout XOR 
+                ## Démo : le MLP résout XOR
 
                 **À gauche** : dans l'espace d'entrée, la frontière de
                 décision est courbe ou demande deux droites (impossible pour un neurone unique).
 
-                **À droite** : les 4 points projetés dans l'espace caché $(h_1, h_2)$. 
+                **À droite** : les 4 points projetés dans l'espace caché $(h_1, h_2)$.
                 La couche de sortie n'a plus qu'une droite à placer : la couche cachée a rendu XOR linéairement séparable.
                 """
             ),
@@ -433,10 +433,12 @@ def _(mo):
 
 @app.cell
 def _(mo):
+    torch.backends.mps.is_available = lambda: False  # force Keras à choisir le CPU
     from pathlib import Path
     import polars as pl
     import os
     os.environ["KERAS_BACKEND"] = "torch"
+    # os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"  # le fallback ne suffit pas il faut donc indiquer dès le début que le MPS n'est pas supported
     import keras
     from keras.models import Sequential
     from keras.layers import Dense, Normalization
@@ -460,7 +462,7 @@ def _(mo, np):
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("../Donnees/corpus.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
@@ -515,9 +517,9 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
 
     # Entraînement du modèle
     model.fit(X_lang, y_lang,
-                        epochs=10, 
-                        verbose=1, 
-                        shuffle=True, 
+                        epochs=10,
+                        verbose=1,
+                        shuffle=True,
                         validation_split=0.2)
 
     # pseudo-Évaluation du modèle

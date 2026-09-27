@@ -19,5 +19,9 @@
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
-...
+- Il fallait rétrograder le module numpy (<2.0) car la version la plus récente de torch que mon pc supporte est 2.2.2.  
+- Il manque polars dans les modules prérequis
+- Je dois aussi downgrade la version de keras (3.6.0) afin d'éviter l'erreur "flatten_with_keys_fn" à cause de comptabilité.
+- Ce sera super si l'endroit de données requises est précisé à l'avance
+- Un problème dû à MPS (NotImplementedError: The operator 'aten::\_foreach_add_.List' is not currently implemented for the MPS device) et os.environ\["PYTORCH_ENABLE_MPS_FALLBACK"] = "1" n'a pas d'effet. 
+- Au final il fallait indiquer que MPS n'est pas dispo sur la machine afin de passer toutes les opérations sur CPU.
