@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -91,6 +91,24 @@ def _(mo, torch):
     return X_lin, y_lin
 
 
+@app.cell
+def _(X_lin):
+    print(X_lin)
+    return
+
+
+@app.cell
+def _(y_lin):
+    print(y_lin)
+    return
+
+
+@app.cell
+def _(y_lin):
+    y_lin[0]
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -102,14 +120,14 @@ def _(mo):
 @app.cell
 def _(X_lin, mo, torch, y_lin):
     def train_perceptron(X, y, eta=1.0, max_epochs=100):
-        w = torch.zeros(X.shape[1])
-        b = 0.0
+        w = torch.zeros(X.shape[1]) # on crée une nouvelle matrice qui a la meme taille que la matrice x et qui est initialisé avec des 0.
+        b = 0.0 #float (seuil theta?)
         for epoch in range(max_epochs):
-            errors = 0
+            errors = 0 
             for i in range(X.shape[0]):
                 xi, yi = X[i], y[i].item()
-                yhat = 1.0 if (w @ xi + b) > 0 else 0.0
-                update = eta * (yi - yhat)   # dans {-1, 0, +1}
+                yhat = 1.0 if (w @ xi + b) > 0 else 0.0 #produit cartesien = resultat    soit 1.0 | 0.0
+                update = eta * (yi - yhat)   # dans {-1, 0, +1} eta = facteur amplificateur de l'erreur ?
                 if update != 0:
                     w += update * xi
                     b += update
@@ -236,7 +254,7 @@ def _(X_lin, mo, nn, torch, y_lin):
         return single_neuron, acc
     single, acc = build_and_train_single_neuron(X_lin, y_lin)
     mo.md("code d'entraînement d'un unique neurone")
-    return (single,)
+    return build_and_train_single_neuron, single
 
 
 @app.cell
@@ -329,10 +347,10 @@ def _(nn, torch):
     y_xor = torch.tensor([[0.], [1.], [1.], [0.]])
 
     # MLP in pytorch (object oriented version)
-    class MLP(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.hidden = nn.Linear(2, 2)
+    class MLP(nn.Module): #neuron network module  (  note : une classe c'est generaliser des attributs commun d'un objet)
+        def __init__(self): #fonction qui s'execute lorsque je veux creer un objet de cette classe 
+            super().__init__() # super se ref au parent( module) et execute la fonction initialisation 
+            self.hidden = nn.Linear(2, 2) #couche cachée
             self.out = nn.Linear(2, 1)
 
         def forward(self, x):
@@ -340,12 +358,14 @@ def _(nn, torch):
 
     mlp = MLP()
 
-    # training in pytorch
-    opt = torch.optim.SGD(mlp.parameters(), lr=0.5)
+    print(list(mlp.parameters())) #demander au prof 
+
+    # training in pytorch    poids         learning rate
+    opt = torch.optim.SGD(mlp.parameters(), lr=0.5) #on appel la classe mlp et sgd 
     loss_fn = nn.BCEWithLogitsLoss()
 
     for _ in range(5000):
-        opt.zero_grad()
+        opt.zero_grad()  #gradient  qui sra utile pour ajuster les poids et reduire l'erreur
         loss = loss_fn(mlp(X_xor), y_xor)
         loss.backward()
         opt.step()
@@ -410,11 +430,6 @@ def _(fig_xor, mo):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -460,18 +475,18 @@ def _(mo, np):
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("./corpus/corpus6.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_os = text.count("os") # ajout d'une classe pour l'espagnol qui comptabilise les "os" augementer les features 
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "os": n_os /l}
                 data.append(instance)
         return data
 
-    data_lang = load_data()[:200]
-
+    data_lang = load_data()[:500]
     # normalisation
     def normalise_data(dataset):
         for k in dataset[0].keys():
@@ -479,15 +494,67 @@ def _(mo, np):
                 mean = np.mean([d[k] for d in dataset])
                 std = np.std([d[k] for d in dataset])
                 for d in dataset:
-                    d[k] = (d[k]- mean) / std
+                    d[k] = (d[k]- mean) / std # forcer la disctribution des count loi normal centré en 0 avec un std de 1
 
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
-    y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    X_lang = np.array([[d['th'], d['en'], d['os']] for d in data_lang])
+    y_lang = np.array([
+        np.array([1,1]) if d['label'] == 'deu'
+        else(np.array([0,0]) if ['label']=="en"
+             else np.array([1,0]))
+        for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
     return X_lang, y_lang
+
+
+@app.cell
+def _(X_lang, torch):
+    X_lang_= torch.from_numpy(X_lang)
+    return (X_lang_,)
+
+
+@app.cell
+def _(torch, y_lang):
+    y_lang_=torch.from_numpy(y_lang)
+    return (y_lang_,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Construction et entraînement du modèle en Pytorch
+    """)
+    return
+
+
+@app.cell
+def _(X_lang_, build_and_train_single_neuron, y_lang_):
+    single_, acc_ = build_and_train_single_neuron(X_lang_.float(), y_lang_)
+    return (single_,)
+
+
+@app.cell
+def _(X_lang, plot_artifical_data, single_, y_lang):
+    fig_sgd_ = plot_artifical_data(X_lang, y_lang,
+                                  w=single_.weight.data.squeeze().numpy(),
+                                  b=single_.bias.data.item(), title="1 neuron, SGD")
+    return (fig_sgd_,)
+
+
+@app.cell
+def _(fig_sgd_, mo):
+    mo.vstack([  fig_sgd_])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    on voit bien ce que ce ne sont pas des données lineairement separable mais la marge d'erreur est plutot  correct
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -501,20 +568,24 @@ def _(mo):
 @app.cell
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
-    model = Sequential([
-        keras.layers.Input(shape=(2,)),
-        Dense(1, activation='sigmoid')
+    model = Sequential([             # sequence de couche 1 input 2= couche ouput # ajouter la hidden layer ici ?
+        keras.layers.Input(shape=(3,)),
+        #Dense(1,activation='tanh'), #hidden layer de dimension 2,2 
+        Dense(2) #perceptron de 'sortie/ dernier de la liste' de dimension 2,1 
     ])
+    #modifier la sigmoid par la tangent hyperbolique on a pas bcp gagner en precision 
+    # j'ai tester en ajoutant un bi gramme pour l'espagnol et modifier les dimensions des cours du reseau et la precision est plutot correct ? ( est ce que c'est bizarre ?)
+    # Compilation du modèle | j'ai modifier la dense la sortie n'est plus simplement 0 ou 1 car on est plus sur une classification binaire 
 
-    # Compilation du modèle
-    model.compile(
+    # donc si j'ai bien compris le reseau de neuronne aurait pu aussi garder 3 fearture et 2 langue a identifier ( donc une sortie binaire ) et faire le comptage normalisé  et l'apprentissage en ajustant les poids et en fonction de ce qu'il aura identifie il attribura le label allemand ou anglais par exemple ( label encodé 0 ou 1).
+    model.compile( #methode de la classe sequential
         optimizer=SGD(),
         loss='binary_crossentropy',
         metrics=['accuracy']
     )
 
     # Entraînement du modèle
-    model.fit(X_lang, y_lang,
+    model.fit(X_lang, y_lang,  #methode de la classe sequential
                         epochs=10, 
                         verbose=1, 
                         shuffle=True, 
@@ -527,6 +598,11 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell
+def _():
     return
 
 
