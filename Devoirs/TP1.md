@@ -21,8 +21,19 @@
 
 Le code tourne parfaitement sur ma machine. Et j'apprécie beaucoup les notebooks marimo !
 
-Je n'ai malheuresement pas eu le temps de bien m'imprégner du code avant la deadline. Je n'ai pas encore accès à Moodle (inscription en R&D, en attente de validation). 
+Je n'ai malheureusement pas eu le temps de bien m'imprégner du code avant la deadline. Je n'ai pas encore accès à Moodle (inscription en R&D, en attente de validation). 
 Serait-il possible d'avoir une deadline du mardi au lundi suivant ? Si ce n'est pas possible, j'essayerai de mieux m'organiser les semaines suivantes !
 Je n'ai pas pu modifier le code avant dimanche 23h59. J'essayerai avant la séance de mon côté, plutôt que de bacler mon travail et de passer à côté des points clefs. 
 
 Sinon, tout est parfait, merci beaucoup !
+
+
+Edit : 
+J'ai pris le temps de comprendre le fonctionnement des Perceptron ainsi que, plus précisément, la Loss function et la descente de gradient stochastique. 
+
+Je me suis attardé sur cette chaîne, notamment cette vidéo : [https://www.youtube.com/watch?v=VlMm4VZ6lk4&t=312s] Qu'en pensez-vous ?
+
+Pour le code du Perceptron simple : je ne suis pas sûr de bien comprendre 'eta'. 
+
+Pour les figures : faut-il savoir créer des figures de visualisation pour ce cours, ou peut-on utiliser seulement la documentation voire des exemples de code en ligne ?
+Je ne suis pas certain de saisir la différence entre le MLP et SGD.
