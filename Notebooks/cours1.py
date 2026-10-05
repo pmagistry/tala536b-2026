@@ -1,24 +1,18 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
-
-    return (mo,)
-
-
-@app.cell
-def _():
     import torch
     import torch.nn as nn
     import numpy as np
     import matplotlib.pyplot as plt
     # torch.manual_seed(0)
-    return nn, np, plt, torch
+    return mo, nn, np, plt, torch
 
 
 @app.cell(hide_code=True)
@@ -124,14 +118,14 @@ def _(X_lin, mo, torch, y_lin):
 
 
 @app.cell
-def _(np, plt, w_perc):
+def _(np, plt):
     def plot_artifical_data(X, y, w, b, title="données et modèle linéaires"):
         fig, ax = plt.subplots(figsize=(5, 4))
         m = y == 1
         ax.scatter(X[m, 0], X[m, 1], c="tab:red", s=15, label="classe 1")
         ax.scatter(X[~m, 0], X[~m, 1], c="tab:blue", s=15, label="classe 0")
         xs = np.linspace(-3, 3, 50)
-        if abs(w_perc[1]) > 1e-8:
+        if abs(w[1]) > 1e-8:
             ax.plot(xs, -(w[0] * xs + b) / w[1], "k-", lw=2)
         ax.set_title(title)
         ax.legend()
@@ -410,11 +404,6 @@ def _(fig_xor, mo):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -465,8 +454,9 @@ def _(mo, np):
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_le = text.count("le")
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "le": n_le}
                 data.append(instance)
         return data
 
@@ -485,9 +475,10 @@ def _(mo, np):
 
     # encodage des données
     X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X3_lang = np.array([[d['th'], d['en'], d['le']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
+    return X3_lang, X_lang, y_lang
 
 
 @app.cell(hide_code=True)
@@ -527,6 +518,94 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Exercices
+    ## classification de langues, version pytorch
+    """)
+    return
+
+
+@app.cell
+def _(X3_lang, nn, torch, y_lang):
+    def build_and_train_lang_classif(X, y):
+        # building the "model"
+        single_neuron = nn.Linear(3, 1)
+        activation = nn.Sigmoid()
+
+        # training
+        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
+        loss_fn = nn.BCELoss() #nn.BCEWithLogitsLoss()
+        y_col = y.unsqueeze(1)
+
+        for _ in range(10):
+            opt.zero_grad()
+            loss = loss_fn(activation(single_neuron(X)), y_col)
+            loss.backward()
+            opt.step()
+
+        # pseudo-evaluation
+        with torch.no_grad():
+            acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
+        return single_neuron, acc
+    classif_pytorch, acc_pt = build_and_train_lang_classif(torch.tensor(X3_lang, dtype=torch.float32), torch.tensor(y_lang, dtype=torch.float32))
+    return (acc_pt,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## MLP en keras
+    """)
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, X3_lang, keras, mo, y_lang):
+    # Construction du perceptron en Keras
+    model2 = Sequential([
+        keras.layers.Input(shape=(3,)),
+        Dense(8, activation='tanh'),
+        Dense(1, activation='sigmoid')
+    ])
+
+    # Compilation du modèle
+    model2.compile(
+        optimizer=SGD(),
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    # Entraînement du modèle
+    model2.fit(X3_lang, y_lang,
+                        epochs=10, 
+                        verbose=1, 
+                        shuffle=True, 
+                        validation_split=0.2)
+
+    # pseudo-Évaluation du modèle
+    loss_keras2, acc_keras2 = model2.evaluate(X3_lang, y_lang, verbose=0)
+
+    # Affichage des poids appris
+    weights2 = model2.layers[0].get_weights()[0]
+    bias2 = model2.layers[0].get_weights()[1]
+    mo.md(f"Précision du modèle : {acc_keras2:.2%}\n\nPoids pour 'en_freq' : {weights2[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights2[1][0]:.4f}\n\nBiais : {bias2[0]:.4f}")
+    return acc_keras2, model2
+
+
+@app.cell
+def _(acc_keras2, acc_pt):
+    (acc_keras2, acc_pt)
+    return
+
+
+@app.cell
+def _(model2):
+    model2.summary()
     return
 
 
