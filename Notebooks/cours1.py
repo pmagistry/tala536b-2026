@@ -441,6 +441,7 @@ def _(mo):
     from keras.models import Sequential
     from keras.layers import Dense, Normalization
     from keras.optimizers import SGD
+    from keras import tree
 
     mo.md("une variable d'environnement vient définir le backend qui sera utilisé par Kera (torch, tensorflow ou jax)")
     return Dense, SGD, Sequential, keras
@@ -460,7 +461,7 @@ def _(mo, np):
     # chargement
     def load_data():
         data = []
-        with open("./Notebooks/corpus.txt") as file:
+        with open("./tala536b-2026/Notebooks/corpus.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
