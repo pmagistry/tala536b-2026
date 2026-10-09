@@ -15,9 +15,14 @@
 
 ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
 
-...
+Aucune piste à proposer :-(
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
+J’ai trouvé le TP assez difficile mais très instructif. Ça m’a obligé à rechercher et à comprendre les notions de base que je ne connaissais pas du tout ! Je les ai étudiées sur internet (je n’ai pas encore eu le temps de me plonger dans le livre « Speech and Language Processing »). J’ai bien compris les principes, ainsi que les outils mathématiques.
+
+En étudiant le code ligne par ligne, j’ai également bien assimilé sa structure et j’ai pu faire une partie des exercices en prenant comme exemple le code fourni. Mais je suis conscient qu’à l’heure actuelle, je ne serais pas capable d’écrire ce genre de code en partant de zéro.
+
+Difficultés et questions :
+- Je ne comprends pas bien pourquoi on utilise comme loss la fonction avec Logits (BCEWithLogitsLoss) et non sans. D’après ce que j’ai compris, le logit est le résultat brut avant l’application de la sigmoïde.
 ...
