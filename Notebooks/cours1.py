@@ -1,7 +1,12 @@
 import marimo
 
+<<<<<<< Updated upstream
 __generated_with = "0.24.2"
 app = marimo.App(layout_file="layouts/cours1.slides.json")
+=======
+__generated_with = "0.25.1"
+app = marimo.App()
+>>>>>>> Stashed changes
 
 
 @app.cell
@@ -530,5 +535,96 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     return
 
 
+<<<<<<< Updated upstream
+=======
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Exercices
+    ## classification de langues, version pytorch
+    """)
+    return
+
+
+@app.cell
+def _(X3_lang, nn, torch, y_lang):
+    def build_and_train_lang_classif(X, y):
+        # building the "model"
+        single_neuron = nn.Linear(3, 1)
+        activation = nn.Sigmoid()
+
+        # training
+        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
+        loss_fn = nn.BCELoss() #nn.BCEWithLogitsLoss() # Binary Cross Entropy Loss， 二元交叉熵损失。
+        y_col = y.unsqueeze(1)
+
+        for _ in range(10):
+            opt.zero_grad()
+            loss = loss_fn(activation(single_neuron(X)), y_col)
+            loss.backward()
+            opt.step()
+
+        # pseudo-evaluation
+        with torch.no_grad():
+            acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
+        return single_neuron, acc
+    classif_pytorch, acc_pt = build_and_train_lang_classif(torch.tensor(X3_lang, dtype=torch.float32), torch.tensor(y_lang, dtype=torch.float32))
+    return (acc_pt,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## MLP en keras
+    """)
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, X3_lang, keras, mo, y_lang):
+    # Construction du perceptron en Keras
+    model2 = Sequential([
+        keras.layers.Input(shape=(3,)), #entree
+        Dense(8, activation='tanh'), # couche cache [0] # tanh 加入非线性
+        Dense(1, activation='sigmoid') # sortie : german or english ? -> 0 :genrman ; -> 1 : english
+    ])
+
+    # Compilation du modèle
+    model2.compile(
+        optimizer=SGD(), # SGD（随机梯度下降）
+        loss='binary_crossentropy', # 二分类损失函数
+        metrics=['accuracy'] # 训练的时候顺便告诉我准确率,只是为了观察模型
+    )
+
+    # Entraînement du modèle
+    model2.fit(X3_lang, y_lang,
+                        epochs=10, 
+                        verbose=1, 
+                        shuffle=True, 
+                        validation_split=0.2)
+
+    # pseudo-Évaluation du modèle
+    loss_keras2, acc_keras2 = model2.evaluate(X3_lang, y_lang, verbose=0)
+
+    # Affichage des poids appris
+    weights2 = model2.layers[0].get_weights()[0] # 把8个隐藏神经元这一层的 weights/bias拿出来看看
+    bias2 = model2.layers[0].get_weights()[1]
+    mo.md(f"Précision du modèle : {acc_keras2:.2%}\n\nPoids pour 'en_freq' : {weights2[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights2[1][0]:.4f}\n\nBiais : {bias2[0]:.4f}")
+    return acc_keras2, model2
+
+
+@app.cell
+def _(acc_keras2, acc_pt):
+    (acc_keras2, acc_pt)
+    return
+
+
+@app.cell
+def _(model2):
+    model2.summary()
+    return
+
+
+>>>>>>> Stashed changes
 if __name__ == "__main__":
     app.run()
