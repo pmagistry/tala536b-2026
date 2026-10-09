@@ -358,7 +358,10 @@ def _(nn, torch):
     # pseudo-evaluation
     with torch.no_grad():
         acc_mlp = (
-            ((torch.sigmoid(mlp(X_xor)) > 0.5).float() == y_xor).float().mean().item()
+            ((torch.sigmoid(mlp(X_xor)) > 0.5).float() == y_xor)
+            .float()
+            .mean()
+            .item()
         )
         hidden_xor = torch.tanh(mlp.hidden(X_xor))
     return X_xor, hidden_xor, mlp, y_xor
@@ -366,7 +369,9 @@ def _(nn, torch):
 
 @app.cell(hide_code=True)
 def _(X_xor, hidden_xor, mlp, np, plt, torch, y_xor):
-    xx, yy = np.meshgrid(np.linspace(-0.5, 1.5, 300), np.linspace(-0.5, 1.5, 300))
+    xx, yy = np.meshgrid(
+        np.linspace(-0.5, 1.5, 300), np.linspace(-0.5, 1.5, 300)
+    )
     grid = torch.tensor(np.c_[xx.ravel(), yy.ravel()], dtype=torch.float32)
 
     with torch.no_grad():
@@ -597,11 +602,13 @@ def _(mo):
 def _(X_lang, nn, np, torch, y_lang):
     # Conversion des matrices numpy en tensors pytorch
     X_lang_t = torch.from_numpy(X_lang.astype(np.float32))
-    y_lang_t = torch.from_numpy(y_lang.astype(np.float32).reshape(y_lang.shape[0], 1))
+    y_lang_t = torch.from_numpy(
+        y_lang.astype(np.float32).reshape(y_lang.shape[0], 1)
+    )
 
     # Construction du perceptron en pytorch
-    model_t = nn.Sequential(nn.Linear(2, 1))
-    learning_rate_t = 1
+    model_t = nn.Sequential(nn.Linear(3, 1))
+    learning_rate_t = 0.1
     optimizer_t = torch.optim.SGD(model_t.parameters(), lr=learning_rate_t)
 
     # Fonction coût
@@ -636,7 +643,7 @@ def _(model_t, torch):
 
     def is_english(sentence):
         sentence_tensor = torch.tensor(
-            [float(sentence.count("th")), float(sentence.count("en"))]
+            [float(sentence.count("th")), float(sentence.count("en")), float(sentence.count("wh"))]
         )
 
         return (torch.sigmoid(model_t(sentence_tensor)) > 0.5)[0]
@@ -644,7 +651,9 @@ def _(model_t, torch):
     test_sentence = "Ernest Boulanger had studied at the Paris Conservatoire and, in 1835 at the age of 20, won the coveted Prix de Rome for composition. He wrote comic operas and incidental music for plays but was most widely known for his choral music. He achieved distinction as a director of choral groups, teacher of voice, and a member of choral competition juries. After years of rejection, in 1872 he was appointed to the Paris Conservatoire as professor of singing."
     # test_sentence = 'm Jahr 1914 komponierte sie „Drei Stücke“ für Violoncello und Klavier, ein impressionistisches Werk mit drei Teilen jeweils eigenen Charakters. Der Pianist Raoul Pugno (1852–1914) setzte sich für Nadia Boulanger ein und führte unter ihrer Leitung ihre Rhapsodie variée für Klavier und Orchester auf. Auch komponierte er mit ihr gemeinsam eine Reihe von Werken wie den Liederzyklus der Heures claires („Helle Stunden“). Nach seinem Tod widmete Nadia Boulanger sich stärker der Musikpädagogik, Orchesterleitung und der Verbreitung des Werks ihrer Schwester Lili Boulanger. Ab 1921 unterrichtete sie an der École normale de musique de Paris und am neu gegründeten Conservatoire Américain in Fontainebleau. Im selben Jahr reiste sie erstmals in die USA, wo sie fortan regelmäßig Meisterkurse gab. Sie wurde eine der berühmtesten Kompositionslehrerinnen des 20. Jahrhunderts.'
 
-    print(f"Texte en anglais : {'Oui' if is_english(test_sentence) else 'Non'}")
+    print(
+        f"Texte en anglais : {'Oui' if is_english(test_sentence) else 'Non'}"
+    )
     return
 
 
