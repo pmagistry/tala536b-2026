@@ -16,6 +16,7 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 ## Réaliser une évaluation propre 
 
 - diviser correctement le corpus pour avoir des scores valides
+est ce que la division implique le melange ? ( shuffle et seed )
 - bonus: faire une matrice de confusion
 
 

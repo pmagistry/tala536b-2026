@@ -254,7 +254,7 @@ def _(X_lin, mo, nn, torch, y_lin):
         return single_neuron, acc
     single, acc = build_and_train_single_neuron(X_lin, y_lin)
     mo.md("code d'entraînement d'un unique neurone")
-    return build_and_train_single_neuron, single
+    return (single,)
 
 
 @app.cell
@@ -471,7 +471,6 @@ def _(mo):
 
 @app.cell
 def _(mo, np):
-
     # chargement
     def load_data():
         data = []
@@ -480,13 +479,21 @@ def _(mo, np):
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
-                n_os = text.count("os") # ajout d'une classe pour l'espagnol qui comptabilise les "os" augementer les features 
+                n_le = text.count("le")
+                n_os = text.count("os") #ajout pour detecter une troisieme langue
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l, "os": n_os /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "le": n_le/l,"os":n_os/l}
                 data.append(instance)
         return data
+    import random
 
-    data_lang = load_data()[:500]
+    classes = {"deu": 0, "eng": 1, "spa": 2}   #adaptation afin que le modele puisse corrctmeent laeliser les langues
+
+    all_data = [d for d in load_data() if d['label'] in classes] 
+    random.seed(0) #rend ce melange reproductible
+    random.shuffle(all_data) #melange
+    data_lang = all_data[:500]
+    #pourquoi melanger les données? prsq il se peut que les 500 premiers textes ne concerne qu'une langue donc on ne pourrait pas identifier 3 langues mais apprendrait a reconnaitre une langue par rapport a d'autres.
     # normalisation
     def normalise_data(dataset):
         for k in dataset[0].keys():
@@ -499,62 +506,19 @@ def _(mo, np):
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en'], d['os']] for d in data_lang])
-    y_lang = np.array([
-        np.array([1,1]) if d['label'] == 'deu'
-        else(np.array([0,0]) if ['label']=="en"
-             else np.array([1,0]))
-        for d in data_lang])
+    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X3_lang = np.array([[d['th'], d['en'], d['le']] for d in data_lang])
+
+    classes = {"deu": 0, "eng": 1, "spa": 2}   #pour les 3 langues
+
+    X4_lang=np.array([[d['th'], d['en'], d['le'],d['os']] for d in data_lang])
+    y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    y3_lang = np.array([classes[d['label']] for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
 
 
-@app.cell
-def _(X_lang, torch):
-    X_lang_= torch.from_numpy(X_lang)
-    return (X_lang_,)
 
-
-@app.cell
-def _(torch, y_lang):
-    y_lang_=torch.from_numpy(y_lang)
-    return (y_lang_,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Construction et entraînement du modèle en Pytorch
-    """)
-    return
-
-
-@app.cell
-def _(X_lang_, build_and_train_single_neuron, y_lang_):
-    single_, acc_ = build_and_train_single_neuron(X_lang_.float(), y_lang_)
-    return (single_,)
-
-
-@app.cell
-def _(X_lang, plot_artifical_data, single_, y_lang):
-    fig_sgd_ = plot_artifical_data(X_lang, y_lang,
-                                  w=single_.weight.data.squeeze().numpy(),
-                                  b=single_.bias.data.item(), title="1 neuron, SGD")
-    return (fig_sgd_,)
-
-
-@app.cell
-def _(fig_sgd_, mo):
-    mo.vstack([  fig_sgd_])
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md("""
-    on voit bien ce que ce ne sont pas des données lineairement separable mais la marge d'erreur est plutot  correct
-    """)
-    return
+    return X3_lang, X4_lang, X_lang, y3_lang, y_lang
 
 
 @app.cell(hide_code=True)
@@ -568,25 +532,28 @@ def _(mo):
 @app.cell
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
-    model = Sequential([             # sequence de couche 1 input 2= couche ouput # ajouter la hidden layer ici ?
-        keras.layers.Input(shape=(3,)),
-        #Dense(1,activation='tanh'), #hidden layer de dimension 2,2 
-        Dense(2) #perceptron de 'sortie/ dernier de la liste' de dimension 2,1 
+    model = Sequential([
+        keras.layers.Input(shape=(2,)),
+        Dense(8, activation='tanh'),
+       # Dense(1,activation='softmax'),
+        Dense(1,activation='sigmoid')
+    
     ])
-    #modifier la sigmoid par la tangent hyperbolique on a pas bcp gagner en precision 
-    # j'ai tester en ajoutant un bi gramme pour l'espagnol et modifier les dimensions des cours du reseau et la precision est plutot correct ? ( est ce que c'est bizarre ?)
-    # Compilation du modèle | j'ai modifier la dense la sortie n'est plus simplement 0 ou 1 car on est plus sur une classification binaire 
 
-    # donc si j'ai bien compris le reseau de neuronne aurait pu aussi garder 3 fearture et 2 langue a identifier ( donc une sortie binaire ) et faire le comptage normalisé  et l'apprentissage en ajustant les poids et en fonction de ce qu'il aura identifie il attribura le label allemand ou anglais par exemple ( label encodé 0 ou 1).
-    model.compile( #methode de la classe sequential
+
+
+    # Compilation du modèle
+    model.compile(
         optimizer=SGD(),
         loss='binary_crossentropy',
         metrics=['accuracy']
     )
 
     # Entraînement du modèle
-    model.fit(X_lang, y_lang,  #methode de la classe sequential
-                        epochs=10, 
+    model.fit(X_lang, y_lang,
+                        #batch_size=32,
+                        batch_size=16,  #essai de changer la taille des batch:taille des paquets dans lesquels on découpe les données d'entraînement ; chaque paquet donne lieu à une mise à jour des poids.
+                        epochs=100, 
                         verbose=1, 
                         shuffle=True, 
                         validation_split=0.2)
@@ -597,12 +564,173 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Affichage des poids appris
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'th_freq' : {weights[0][0]:.4f}\n\nPoids pour 'en_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Exercice de classification en Pytorch
+    """)
+    return
+
+
+@app.cell
+def _(X3_lang, nn, torch, y_lang):
+    def build_and_train_lang_classif(X, y):
+        # building the "model"
+        single_neuron = nn.Linear(3, 1)
+        activation = nn.Sigmoid()
+
+        # training
+        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
+        loss_fn = nn.BCELoss() #nn.BCEWithLogitsLoss()
+        y_col = y.unsqueeze(1)
+
+        losses = []                          
+        for _ in range(100):
+            opt.zero_grad()
+            loss = loss_fn(activation(single_neuron(X)), y_col)
+            loss.backward()
+            opt.step()
+            losses.append(loss.item())
+
+        # pseudo-evaluation
+        with torch.no_grad():
+            acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() ==   y_col).float().mean().item()
+        return single_neuron, acc,losses
+    classif_pytorch, acc_pt, losses_pt = build_and_train_lang_classif(torch.tensor(X3_lang, dtype=torch.float32), torch.tensor(y_lang, dtype=torch.float32))
+    return acc_pt, classif_pytorch, losses_pt
+
+
+@app.cell
+def _(acc_pt, classif_pytorch, losses_pt, mo, plt):
+    fig_pt, ax_pt = plt.subplots(figsize=(5, 3))
+    ax_pt.plot(losses_pt)
+    ax_pt.set_xlabel("itération")
+    ax_pt.set_ylabel("loss")
+    ax_pt.set_title("Entraînement PyTorch")
+
+    w_pt = classif_pytorch.weight.data.squeeze()
+    b_pt = classif_pytorch.bias.data.item()
+
+    mo.vstack([
+        mo.md(f"""
+    Précision PyTorch : {acc_pt:.2%}
+
+    Poids pour 'th' : {w_pt[0]:.4f}  
+    Poids pour 'en' : {w_pt[1]:.4f}  
+    Poids pour 'le' : {w_pt[2]:.4f}  
+    Biais : {b_pt:.4f}
+    """),
+        fig_pt
+    ])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ##MLP Keras
+    """)
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, X3_lang, keras, mo, y_lang):
+    # Construction du perceptron en Keras
+    model2 = Sequential([
+        keras.layers.Input(shape=(3,)),
+        Dense(8,activation='tanh'),
+        #Dense(5, activation='softmax'),
+        Dense(1, activation='sigmoid'),
+        #Dense(1, activation='sigmoid')
+    ])
+
+    # Compilation du modèle
+    model2.compile(
+        optimizer=SGD(),
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    # Entraînement du modèle
+    model2.fit(X3_lang, y_lang,
+                        epochs=10, 
+                        verbose=1, 
+                        shuffle=True, 
+                        validation_split=0.2)
+
+    # pseudo-Évaluation du modèle
+    loss_keras2, acc_keras2 = model2.evaluate(X3_lang, y_lang, verbose=0)
+
+    # Affichage des poids appris
+    weights2 = model2.layers[0].get_weights()[0]
+    bias2 = model2.layers[0].get_weights()[1]
+    mo.md(f"Précision du modèle : {acc_keras2:.2%}\n\nPoids pour 'en_freq' : {weights2[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights2[1][0]:.4f}\n\nBiais : {bias2[0]:.4f}")
+    return acc_keras2, model2
+
+
+@app.cell
+def _(acc_keras2, acc_pt):
+    (acc_keras2, acc_pt)
+    return
+
+
+@app.cell
+def _(model2):
+    model2.summary()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ##Modele Keras pour plusieurs langues ?
+    """)
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, X4_lang, keras, mo, y3_lang):
+    # Construction du perceptron en Keras
+    model3 = Sequential([
+        keras.layers.Input(shape=(4,)),  # 4features: fréquences de th, en, le, os
+        Dense(8, activation='relu'), #couche caché plie l'espace pour rendre les    langues séparables linéairement
+        Dense(3, activation='softmax'), #couche de sortie 1 neurone par langue, probas qui somment à 1
+    ])
+
+    model3.compile(
+        optimizer=SGD(learning_rate=0.1), #descente de gradient, pas de 0.1
+        loss='sparse_categorical_crossentropy', #N classes exclusives, labels entiers (0, 1, 2)
+        metrics=['accuracy']
+    )
+
+    hist3 = model3.fit(X4_lang, y3_lang, 
+                       epochs=50,           #nombre de passages complets sur les données
+                       batch_size= 16,      #nb de correction de poid tout les 16 exemples
+                       verbose=0,
+                       shuffle=True,         #mélange les exemples à chaque epoch
+                       validation_split=0.2) #Parti du corpus qui sera utilisé dans le test 
+    #précision sur tout le corpus ( ce qu'a retenu le modele ),  puis sur la validation seule ( ce qu'a comprit le modele)
+    loss_keras3, acc_keras3 = model3.evaluate(X4_lang, y3_lang, verbose=0)
+    mo.md(f"Précision entraînement : {acc_keras3:.2%}\n\n"
+          f"Précision validation : {hist3.history['val_accuracy'][-1]:.2%}")
+    return (model3,)
+
+
+@app.cell
+def _(model3):
+    model3.summary()
     return
 
 
 @app.cell
 def _():
+    from collections import Counter
+    with open("./corpus/corpus6.txt") as f:
+        print(Counter(line.split(" ", 1)[0] for line in f))
     return
 
 

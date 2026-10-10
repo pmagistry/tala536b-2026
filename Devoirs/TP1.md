@@ -39,9 +39,25 @@ Pourquoi choisir 'tanh' plutot que 'sigmoid'? : images -1 à 1 tanh et 0ou 1 sig
         Dense(1,activation='tanh'), #hidden layer de dimension 2,2 
         
         '''
-## Notes du tp:
+## Recaptitulatif de la correction du tp:
 
-J'ai tester en ajoutant un bi gramme pour l'espagnol et modifier les dimensions des cours du reseau et la precision est plutot correct ? ( est ce que c'est bizarre ?)
-Compilation du modèle | j'ai modifier la (dense) de la sortie n'est plus simplement 0 ou 1 car on est plus sur une classification binaire.
+J'ai repris le script cours1 et je l'ai comparé avece qui a ete fait en correction.
 
-Donc si j'ai bien compris le reseau de neuronne aurait pu aussi garder 3 fearture et 2 langue a identifier ( donc une sortie binaire ) et faire le comptage normalisé  et l'apprentissage en ajustant les poids et en fonction de ce qu'il aura identifie il attribura le label allemand ou anglais par exemple ( label encodé 0 ou 1).
+Je note que j'ai confondu beaucoup de notion comme la fonction d'activation et la metrique. 
+J'ai compris qu'une fonciton d'activation (sigmoid , tanh etc ) et une metrique n'etaient pas la meme chose.
+Les metriques sont plutot la precisions, le rappel ou la f-mesure.
+
+Je pensais aussi que l'activation etait en quelque sorte le gradient, mais, 
+en realité l'activation transforme les valeurs à l'aller (forward, je la choisis). 
+Le gradient indique comment corriger les poids au retour (backward, calculé automatiquement).
+Le gradient est multiplié par la pente de l'activation qu'il traverse.
+
+Je pensais aussi que le gradient  agissait à chaque epoch.
+Alors qu'il agit à chaque pas (batch).
+Un epoch = un passage complet sur les données = plusieurs pas. 
+Ex: 400 textes, batch 32  (400/32)→ 13 pas(eta) par epoch (le 13/13 de Keras)
+
+Le batch_size ne concerne que la partie d'entrainement(train) qui a prealablement ete decoupe en train/test.
+
+
+Les features d'entree et de sortie son decorrelées ; les entrées sont les label ( bigramme) et la sortie est le nombre de langues que je souhaite identifié.
