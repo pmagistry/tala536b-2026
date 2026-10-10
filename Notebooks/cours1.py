@@ -1,29 +1,21 @@
 import marimo
 
-<<<<<<< Updated upstream
 __generated_with = "0.24.2"
 app = marimo.App(layout_file="layouts/cours1.slides.json")
-=======
+
 __generated_with = "0.25.1"
 app = marimo.App()
->>>>>>> Stashed changes
 
 
 @app.cell
 def _():
     import marimo as mo
-
-    return (mo,)
-
-
-@app.cell
-def _():
     import torch
     import torch.nn as nn
     import numpy as np
     import matplotlib.pyplot as plt
     # torch.manual_seed(0)
-    return nn, np, plt, torch
+    return mo, nn, np, plt, torch
 
 
 @app.cell(hide_code=True)
@@ -129,14 +121,14 @@ def _(X_lin, mo, torch, y_lin):
 
 
 @app.cell
-def _(np, plt, w_perc):
+def _(np, plt):
     def plot_artifical_data(X, y, w, b, title="données et modèle linéaires"):
         fig, ax = plt.subplots(figsize=(5, 4))
         m = y == 1
         ax.scatter(X[m, 0], X[m, 1], c="tab:red", s=15, label="classe 1")
         ax.scatter(X[~m, 0], X[~m, 1], c="tab:blue", s=15, label="classe 0")
         xs = np.linspace(-3, 3, 50)
-        if abs(w_perc[1]) > 1e-8:
+        if abs(w[1]) > 1e-8:
             ax.plot(xs, -(w[0] * xs + b) / w[1], "k-", lw=2)
         ax.set_title(title)
         ax.legend()
@@ -415,11 +407,6 @@ def _(fig_xor, mo):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -470,8 +457,9 @@ def _(mo, np):
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                n_le = text.count("le")
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "le": n_le}
                 data.append(instance)
         return data
 
@@ -490,9 +478,10 @@ def _(mo, np):
 
     # encodage des données
     X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X3_lang = np.array([[d['th'], d['en'], d['le']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
+    return X3_lang, X_lang, y_lang
 
 
 @app.cell(hide_code=True)
@@ -535,8 +524,6 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     return
 
 
-<<<<<<< Updated upstream
-=======
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -625,6 +612,5 @@ def _(model2):
     return
 
 
->>>>>>> Stashed changes
 if __name__ == "__main__":
     app.run()
