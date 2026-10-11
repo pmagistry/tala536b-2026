@@ -91,18 +91,6 @@ def _(mo, torch):
     return X_lin, y_lin
 
 
-@app.cell
-def _(y_lin):
-    y_lin
-    return
-
-
-@app.cell
-def _(X_lin):
-    X_lin
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -144,12 +132,6 @@ def _(X_lin, mo, torch, y_lin):
     w_perc, b_perc, n_ep = train_perceptron(X_lin, y_lin)
     mo.md("entrainement d'un perceptron")
     return b_perc, w_perc
-
-
-@app.cell
-def _(y_lin):
-    y_lin
-    return
 
 
 @app.cell
@@ -275,7 +257,6 @@ def _(X_lin, mo, nn, torch, y_lin):
         opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1) # gradient descent
         loss_fn = nn.BCEWithLogitsLoss() # continuous
         y_col = y.unsqueeze(1)
-
         for _ in range(500):
             opt.zero_grad()
             loss = loss_fn(single_neuron(X), y_col) # coût entre la prédiction et le gold
@@ -524,14 +505,19 @@ def _(mo, np):
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("./corpus6.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1) # on ne fait qu'1 split
                 n_th = text.count("th")
                 n_en = text.count("en")
                 n_de = text.count("de") # ajout d'un bigramme
+                n_a_ = text.count("a ") # ajout d'un bigramme
+                n_o_ = text.count("o ") # ajout d'un bigramme
+                n_on = text.count("on") # ajout d'un bigramme
+                n_ee = text.count("ee") # ajout d'un bigramme
+                n_eu = text.count("eu") # ajout d'un bigramme
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l, "de": n_de /l}
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "de": n_de /l, "a " : n_a_/l, "o " : n_o_/l, "on" : n_on/l , "ee" : n_ee/l, "eu" : n_eu/l}
                 data.append(instance) # data est une liste de dictionnaires
         return data
 
@@ -539,10 +525,10 @@ def _(mo, np):
 
     # normalisation
     def normalise_data(dataset):
-        for k in dataset[0].keys(): # k prend les valeurs : "label", "th", "en", "de"
+        for k in dataset[0].keys(): # k prend les valeurs : "label", "th", "en", "de", "a ", "o ", "on", "ee", "eu"
             if k != 'label': # les "coordonnées" du texte (comptes de th et en)
-                mean = np.mean([d[k] for d in dataset]) # moyenne des valeurs de th et en
-                std = np.std([d[k] for d in dataset]) # ecart-type des valeurs de th et en
+                mean = np.mean([d[k] for d in dataset]) # moyenne des valeurs de th, en, ...
+                std = np.std([d[k] for d in dataset]) # ecart-type des valeurs de th, en, ...
                 for d in dataset:
                     d[k] = (d[k]- mean) / std # on normalise tous les compteurs
                               # ça évite par ex que les compteurs de "th" soient énorme 
@@ -551,9 +537,16 @@ def _(mo, np):
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en'], d['de']] for d in data_lang]) 
-    y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
-    # on convertit les labels "deu" en 0.0 (float) et "eng" en 1.0
+    X_lang = np.array([[d['th'], d['en'], d['de'], d['a '], d['o '], d['ee'], d['eu']] for d in data_lang]) 
+
+    # là, il va falloir faire quelque chose d'un peu plus compliqué. 
+    # ["deu", "eng", "fra", "ita", "spa", "nld"]
+    lang_to_id = {"deu" : 0, "eng" : 1, "fra": 2, "ita" : 3, "spa" : 4, "nld" : 5}
+    id_to_lg = {value : key for key,value in lang_to_id.items()}
+    y_lang = np.array([[1.0 if d['label']==id_to_lg[i] else 0.0 for i in range(6)] for d in data_lang])
+    # on convertit les labels en un vecteur qui vaut 1.0 dans la coordonnée 
+    # correspondant à la langue de laphrase, et 0.0 dans les autres coordonnées
+    # ex: une phrase en nld sera associée à [0.0, 0.0, 0.0, 0.0, 0.0, 1.0] 
     mo.md("essayez avec et sans normalisation !")
     return X_lang, data_lang, load_data, normalise_data, y_lang
 
@@ -570,21 +563,22 @@ def _(mo):
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
-        keras.layers.Input(shape=(3,)), # modif car mtn 3 entrées
-        Dense(1), # ajout d'une couche, https://stackoverflow.com/questions/46572674/keras-sequential-model-input-layer
-        Dense(1, activation='sigmoid')
+        keras.layers.Input(shape=(7,)), # modif car mtn 7 entrées (features)
+        Dense(10), # ajout d'une couche dense, https://stackoverflow.com/questions/46572674/keras-sequential-model-input-layer
+            # c'est quoi son activation par défaut ?? → linear (y = ax)
+        Dense(6, activation='softmax') # c'et là que ça doit valoir 6 (nb de langues) ??
     ])
 
     # Compilation du modèle
     model.compile(
         optimizer=SGD(),
-        loss='binary_crossentropy',
+        loss='categorical_crossentropy', # avant : 'binary_crossentropy'
         metrics=['accuracy']
     )
 
     # Entraînement du modèle
     model.fit(X_lang, y_lang,
-                        epochs=10, 
+                        epochs=100, 
                         verbose=1, 
                         shuffle=True, 
                         validation_split=0.2)
@@ -622,7 +616,7 @@ def _(bias, data_lang, load_data, mo, model, normalise_data, np, weights):
     normalise_data(data_lang_full)
 
     # encodage des données
-    X_lang_full = np.array([[d['th'], d['en'], d['de']] for d in data_lang]) 
+    X_lang_full = np.array([[d['th'], d['en'], d['a '], d['o '], d['on'], d['ee'], d['eu']] for d in data_lang]) 
     y_lang_full = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     # on convertit les labels "deu" en 0.0 (float) et "eng" en 1.0
 

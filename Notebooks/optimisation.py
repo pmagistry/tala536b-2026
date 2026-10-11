@@ -73,7 +73,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(X, Y, b_slide, mo, np, w1_slide, w2_slide):
     import altair as alt
     import polars as pl
