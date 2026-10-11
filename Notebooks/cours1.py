@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.1"
+app = marimo.App()
 
 
 @app.cell
@@ -443,7 +443,7 @@ def _(mo):
     from keras.optimizers import SGD
 
     mo.md("une variable d'environnement vient définir le backend qui sera utilisé par Kera (torch, tensorflow ou jax)")
-    return Dense, SGD, Sequential, keras
+    return (Path,)
 
 
 @app.cell(hide_code=True)
@@ -455,39 +455,31 @@ def _(mo):
 
 
 @app.cell
-def _(mo, np):
+def _(Path, mo):
+    import sys
 
-    # chargement
-    def load_data():
-        data = []
-        with open("./corpus.txt") as file:
-            for line in file:
-                label, text = line.strip().split(" ",1)
-                n_th = text.count("th")
-                n_en = text.count("en")
-                l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
-                data.append(instance)
-        return data
+    # Ajouter le dossier parent au path pour trouver outils_tp2.py
+    sys.path.append(str(Path.cwd().parent))
 
-    data_lang = load_data()[:200]
+    import outils_tp2
+    from sklearn.model_selection import train_test_split
 
-    # normalisation
-    def normalise_data(dataset):
-        for k in dataset[0].keys():
-            if k != 'label':
-                mean = np.mean([d[k] for d in dataset])
-                std = np.std([d[k] for d in dataset])
-                for d in dataset:
-                    d[k] = (d[k]- mean) / std
+    # Chargement des 6 langues
+    raw_data = outils_tp2.load_data_6_languages("../corpus.txt")
+    X, y, encoder = outils_tp2.prepare_features_and_labels(raw_data)
 
-    normalise_data(data_lang)
+    # Découpage pour évaluation propre (80% train / 20% test)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
 
-    # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
-    y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
-    mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
+    mo.md(
+        f"**Données chargées !**\n\n"
+        f"- Échantillons d'entraînement : {len(X_train)}\n"
+        f"- Échantillons de test : {len(X_test)}\n"
+        f"- Classes ({len(encoder.classes_)}) : {list(encoder.classes_)}"
+    )
+    return X_test, X_train, encoder, outils_tp2, y_test, y_train
 
 
 @app.cell(hide_code=True)
@@ -499,34 +491,108 @@ def _(mo):
 
 
 @app.cell
-def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
-    # Construction du perceptron en Keras
+def _(X_test, X_train, encoder, mo, np, outils_tp2, y_test, y_train):
+    import keras
+    from keras.models import Sequential
+    from keras.layers import Dense, Dropout
+
+    # Modèle pour 6 langues : entrée à 6 descripteurs, sortie à 6 neurones (softmax)
     model = Sequential([
-        keras.layers.Input(shape=(2,)),
-        Dense(1, activation='sigmoid')
+        keras.layers.Input(shape=(6,)),
+        Dense(32, activation='relu'),
+        Dropout(0.2),
+        Dense(6, activation='softmax')
     ])
 
-    # Compilation du modèle
     model.compile(
-        optimizer=SGD(),
-        loss='binary_crossentropy',
+        optimizer='adam',
+        loss='sparse_categorical_crossentropy',
         metrics=['accuracy']
     )
 
-    # Entraînement du modèle
-    model.fit(X_lang, y_lang,
-                        epochs=10, 
-                        verbose=1, 
-                        shuffle=True, 
-                        validation_split=0.2)
+    # Entraînement
+    history = model.fit(
+        X_train, y_train,
+        epochs=30,
+        batch_size=16,
+        validation_split=0.1,
+        verbose=1
+    )
 
-    # pseudo-Évaluation du modèle
-    loss_keras, acc_keras = model.evaluate(X_lang, y_lang, verbose=0)
+    # Évaluation sur le jeu de test
+    loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+    y_pred = np.argmax(model.predict(X_test), axis=1)
 
-    # Affichage des poids appris
-    weights = model.layers[0].get_weights()[0]
-    bias = model.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    # Affichage de la matrice de confusion
+    fig = outils_tp2.plot_confusion_matrix(y_test, y_pred, encoder.classes_)
+
+    mo.vstack([
+        mo.md(f"### Résultat sur le jeu de test\n**Précision finale :** {accuracy:.2%}"),
+        fig
+    ])
+    return
+
+
+@app.cell
+def _(mo):
+    _patterns = ["th", "en", "es", "ij", "ll", "ñ"]
+    _sommes = {}
+    _comptes = {}
+    PATTERNS = ["th", "en", "es", "ij", "ll", "ñ"]
+    with open("../corpus6.txt", encoding="utf-8") as _f:
+        for _ligne in _f:
+            _parts = _ligne.strip().split(" ", 1)
+            if len(_parts) < 2:
+                continue
+            _langue, _texte = _parts
+            _texte = _texte.lower()
+            _longueur = max(len(_texte), 1)
+            if _langue not in _sommes:
+                _sommes[_langue] = [0.0] * len(_patterns)
+                _comptes[_langue] = 0
+            for _i, _p in enumerate(_patterns):
+                _sommes[_langue][_i] += _texte.count(_p) / _longueur
+            _comptes[_langue] += 1
+
+    _lignes = ["| langue | " + " | ".join(_patterns) + " |",
+               "|---" * (len(_patterns) + 1) + "|"]
+    for _langue in sorted(_sommes):
+        _moy = [_s / _comptes[_langue] for _s in _sommes[_langue]]
+        _lignes.append(f"| {_langue} | " + " | ".join(f"{_m:.4f}" for _m in _moy) + " |")
+
+    mo.md("\n".join(_lignes))
+    return
+
+
+@app.cell
+def _():
+    from sklearn.model_selection import train_test_split
+    from keras.models import Sequential
+    from keras.layers import Dense, Input
+    import outils_tp2 as o
+
+    # Chargement et préparation
+    _data = o.load_data_6_languages("../corpus6.txt")
+    X6, y6, encoder6 = o.prepare_features_and_labels(_data)
+
+    # Séparation Train / Test
+    X6_train, X6_test, y6_train, y6_test = train_test_split(
+        X6, y6, test_size=0.2, random_state=42, stratify=y6
+    )
+
+    # Modèle Keras
+    model6 = Sequential([
+        Input(shape=(len(o.PATTERNS),)),
+        Dense(12, activation='relu'),
+        Dense(6, activation='softmax')
+    ])
+
+    model6.compile(optimizer='sgd', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+    # Entraînement
+    history6 = model6.fit(
+        X6_train, y6_train, epochs=30, batch_size=32, validation_data=(X6_test, y6_test)
+    )
     return
 
 
