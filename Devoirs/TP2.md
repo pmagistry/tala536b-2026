@@ -21,5 +21,9 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
-...
+## Difficultés rencontrées
+
+- **Passer de 2 à 6 classes.** Changer le nombre de neurones de sortie ne suffisait pas : il fallait aussi encoder les labels en vecteurs one-hot, utiliser un softmax à la place de la sigmoïde et passer à `categorical_crossentropy`. Ces trois changements vont ensemble : avec 6 langues, le modèle donne une probabilité par langue, donc les labels et la loss doivent avoir le même format.
+
+**Des features peu adaptées à 6 langues.** Les fréquences de "th" et de "en" avaient été choisie pour distinguer l'anglais de l'allemand. Avec 6 langues, le modèle atteint à pe près 52% de précision sur le test, avec des scores train et test très proches. Je pense que la limite vient des features et de l'absence de couche cachée plutôt que de l'entraînement, mais je n'ai pas encore testé d'autres bigrammes ni un MLP pour le vérifier.
+
