@@ -460,7 +460,7 @@ def _(mo, np):
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("/home/cadetmarthe/Documents/Cours_2026_2027/Apprentissage_réseaux_neurones_MAGISTRY/tala536b-2026/corpus.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
