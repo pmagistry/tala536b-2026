@@ -596,5 +596,34 @@ def _():
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Compte-rendu
+
+    Pour ce TP, j'ai adapté le modèle de classification binaire du cours
+    pour passer à 6 langues (allemand, anglais, français, italien,
+    néerlandais, espagnol).
+
+    **Ce que j'ai fait :**
+    - Créé le fichier `outils_tp2.py` avec les fonctions de chargement
+      des données, de préparation des features (fréquences de bigrammes)
+      et de tracé de la matrice de confusion.
+    - Modifié la couche de sortie : 6 neurones avec activation softmax
+      au lieu de 1 neurone sigmoid.
+    - Changé la loss : `sparse_categorical_crossentropy` au lieu de
+      `binary_crossentropy`.
+    - Ajouté un train/test split pour une évaluation propre.
+    - Réalisé la matrice de confusion (bonus).
+
+    **Difficultés rencontrées :**
+    - J'ai eu du mal à comprendre ce qui était exactement attendu dans
+      le TP, notamment comment adapter la couche d'entrée et de sortie.
+    - L'erreur `No module named 'tensorflow'` est apparue, résolue en
+      forçant le backend torch avec `KERAS_BACKEND=torch`.
+    """)
+    return
+
+
 if __name__ == "__main__":
     app.run()
