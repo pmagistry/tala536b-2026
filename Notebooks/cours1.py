@@ -465,8 +465,16 @@ def _(mo, np):
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
+                # On ajoute le troisième bigramme "er".
+                n_er = text.count("er")
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l}
+                instance = {
+                    "label": label,
+                    "th": n_th / l,
+                    "en": n_en / l,
+                    #  fréquence du bigramme "er".
+                    "er": n_er / l,
+                }
                 data.append(instance)
         return data
 
@@ -483,10 +491,11 @@ def _(mo, np):
 
     normalise_data(data_lang)
 
-    # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    # Encodage des données
+    # TP1 - MODIFICATION 3 : chaque texte est maintenant décrit par 3 bigrammes.
+    X_lang = np.array([[d['th'], d['en'], d['er']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
-    mo.md("essayez avec et sans normalisation !")
+    mo.md("Essayez avec et sans normalisation !")
     return X_lang, y_lang
 
 
@@ -500,34 +509,80 @@ def _(mo):
 
 @app.cell
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
-    # Construction du perceptron en Keras
+    #  Ajout d'une couche cachée de 4 neurones (ReLU).
+    #  L'entrée reçoit maintenant 3 caractéristiques (th, en, er).
     model = Sequential([
-        keras.layers.Input(shape=(2,)),
+        keras.layers.Input(shape=(3,)),
+        Dense(4, activation='relu'),
         Dense(1, activation='sigmoid')
     ])
 
-    # Compilation du modèle
+    # Compilation du modèle Keras 
     model.compile(
         optimizer=SGD(),
         loss='binary_crossentropy',
         metrics=['accuracy']
     )
 
-    # Entraînement du modèle
-    model.fit(X_lang, y_lang,
-                        epochs=10, 
-                        verbose=1, 
-                        shuffle=True, 
-                        validation_split=0.2)
+    # Entraînement du modèle Keras.
+    model.fit(
+        X_lang,
+        y_lang,
+        epochs=10,
+        verbose=1,
+        shuffle=True,
+        validation_split=0.2
+    )
 
     # pseudo-Évaluation du modèle
     loss_keras, acc_keras = model.evaluate(X_lang, y_lang, verbose=0)
 
-    # Affichage des poids appris
-    weights = model.layers[0].get_weights()[0]
-    bias = model.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
-    return
+    
+    poids_caches, biais_caches = model.layers[0].get_weights()
+    poids_sortie, biais_sortie = model.layers[1].get_weights()
+    mo.md(
+        f"**Modèle Keras avec couche cachée et 3 bigrammes**\n\n"
+        f"Perte : {loss_keras:.4f}\n\n"
+        f"Exactitude sur les données disponibles : {acc_keras:.2%}\n\n"
+        f"Dimensions des poids de la couche cachée : {poids_caches.shape}\n\n"
+        f"Dimensions des poids de sortie : {poids_sortie.shape}"
+    )
+    return model, loss_keras, acc_keras
+
+
+#  reprise en PyTorch de la classification binaire des langues.
+# Ce modèle utilise une seule couche
+@app.cell
+def _(X_lang, y_lang, nn, mo, torch):
+    X_torch = torch.tensor(X_lang, dtype=torch.float32)
+    y_torch = torch.tensor(y_lang, dtype=torch.float32).reshape(-1, 1)
+
+    
+    model_torch = nn.Linear(3, 1)
+    loss_fn_torch = nn.BCEWithLogitsLoss()
+    optimizer_torch = torch.optim.SGD(model_torch.parameters(), lr=0.01)
+
+    # Boucle d'entraînement en PyTorch.
+    for epoch in range(100):
+        optimizer_torch.zero_grad()
+        logits_torch = model_torch(X_torch)
+        loss_torch = loss_fn_torch(logits_torch, y_torch)
+        loss_torch.backward()
+        optimizer_torch.step()
+
+    # Évaluation simple sur les données utilisées pour l'entraînement.
+    with torch.no_grad():
+        logits_torch = model_torch(X_torch)
+        probabilites_torch = torch.sigmoid(logits_torch)
+        predictions_torch = (probabilites_torch >= 0.5).float()
+        exactitude_torch = (predictions_torch == y_torch).float().mean().item()
+
+    mo.md(
+        f"**Modèle PyTorch (couche linéaire)**\n\n"
+        f"Perte finale : {loss_torch.item():.4f}\n\n"
+        f"Exactitude sur les données disponibles : {exactitude_torch:.2%}"
+    )
+    return model_torch, exactitude_torch, loss_torch
 
 
 if __name__ == "__main__":
