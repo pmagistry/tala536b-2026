@@ -1,8 +1,5 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
-
 __generated_with = "0.25.1"
 app = marimo.App()
 
@@ -455,11 +452,14 @@ def _(mo, np):
         with open("./corpus.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
+                if len(text) == 0:
+                    continue
                 n_th = text.count("th")
                 n_en = text.count("en")
                 n_le = text.count("le")
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l, "le": n_le}
+           
+                instance = {"label":label, "th": n_th / l, "en": n_en /l, "le": n_le/l}
                 data.append(instance)
         return data
 
