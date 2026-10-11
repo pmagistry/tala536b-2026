@@ -17,7 +17,7 @@
 
 ...
 
-## Expliquer ci-dessous vos difficultés ou posez vos questions
-
-(ou dites si tout va bien !)
-...
+## Expliquer ci-dessous vos difficultés ou posez vos question
+## Pour ce premier TP jereconnait que la tache était dur, j'ai mis beaucoup de temps pour comprendre le code et les différentes librairies utilisées. Au debut j'ai commencé par la documentation des deux (Keras et Pytorch). Ensuite j'ai essayé de faire une petite comparaison et sur leur mode de fonctionnenement.
+## les divergences que j'ai réussi à voir par exemeple au niveau de la préparartion des données ou Keras utilise Numpy alors que pytorch travaille avec les tenseurs 
+## Avec Keras on utilise Segmoid au tout debut contrairement à pytorch qui l'intègre dans le calcul de la perte   
