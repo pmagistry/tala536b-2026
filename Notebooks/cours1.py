@@ -12,7 +12,9 @@ def _():
     import numpy as np
     import matplotlib.pyplot as plt
     # torch.manual_seed(0)
-    return mo, nn, np, plt, torch
+    from sklearn.model_selection import train_test_split
+
+    return mo, nn, np, plt, torch, train_test_split
 
 
 @app.cell(hide_code=True)
@@ -444,44 +446,64 @@ def _(mo):
 
 
 @app.cell
-def _(mo, np):
+def _(mo, np, train_test_split):
 
+    bigrams = ["th", "en", "wh",   # anglais
+               "ch", "ei", "sc",   # allemand
+               "ij", "aa", "oe",   # néerlandais
+               "ou", "eu", "qu", "oi", "le", "de", "on", "ai", "me", "it",   # français
+               "zi", "gl", "zz",   # italien
+               "ll", "ue", "ci"]   # espagnol
+    #bigrams = ["th", "en"]
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("./corpus6.txt") as file:
             for line in file:
-                label, text = line.strip().split(" ",1)
+                line = line.strip()
+                if " " not in line:   # 空行，或者只有标签没有文本
+                    continue
+                label, text = line.split(" ", 1)
                 if len(text) == 0:
                     continue
-                n_th = text.count("th")
-                n_en = text.count("en")
-                n_le = text.count("le")
                 l = len(text)
-           
-                instance = {"label":label, "th": n_th / l, "en": n_en /l, "le": n_le/l}
+                instance = {"label":label}
+                for bg in bigrams:
+                    instance[bg] = text.count(bg) / l
                 data.append(instance)
         return data
 
-    data_lang = load_data()[:200]
+    from collections import Counter
+
+    data_test_labels = load_data()
+    print(Counter(d["label"] for d in data_test_labels))
+
+    data_lang = load_data()
+    print(len(data_lang))
 
     # normalisation
-    def normalise_data(dataset):
-        for k in dataset[0].keys():
+    def normalise_data(train, test):
+        for k in train[0].keys():
             if k != 'label':
-                mean = np.mean([d[k] for d in dataset])
-                std = np.std([d[k] for d in dataset])
-                for d in dataset:
+                mean = np.mean([d[k] for d in train])
+                std = np.std([d[k] for d in train]) or 1.0 # éviter l'occasion où quelques bigrammes n'apparaîssent pas
+                for d in train + test:
                     d[k] = (d[k]- mean) / std
 
-    normalise_data(data_lang)
+    data_train, data_test = train_test_split(
+        data_lang, test_size=0.2, random_state=42,
+        stratify=[d['label'] for d in data_lang]) # test 20%, même proportion pour toutes les langues
+
+    #normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
-    X3_lang = np.array([[d['th'], d['en'], d['le']] for d in data_lang])
-    y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    langs = sorted({d['label'] for d in data_lang})   # ['deu','eng','fra','ita','nld','spa']
+    X_train = np.array([[d[bg] for bg in bigrams] for d in data_train])
+    y_train = np.array([langs.index(d['label']) for d in data_train])
+    X_test  = np.array([[d[bg] for bg in bigrams] for d in data_test])
+    y_test  = np.array([langs.index(d['label']) for d in data_test])
     mo.md("essayez avec et sans normalisation !")
-    return X3_lang, X_lang, y_lang
+    return X_test, X_train, langs, y_test, y_train
 
 
 @app.cell(hide_code=True)
@@ -493,34 +515,56 @@ def _(mo):
 
 
 @app.cell
-def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
+def _(
+    Dense,
+    SGD,
+    Sequential,
+    X_test,
+    X_train,
+    keras,
+    langs,
+    mo,
+    y_test,
+    y_train,
+):
     # Construction du perceptron en Keras
     model = Sequential([
-        keras.layers.Input(shape=(2,)),
-        Dense(1, activation='sigmoid')
+        keras.layers.Input(shape=(X_train.shape[1],)),
+        Dense(32, activation='tanh'),
+        Dense(len(langs), activation='softmax')
     ])
 
     # Compilation du modèle
     model.compile(
-        optimizer=SGD(),
-        loss='binary_crossentropy',
+        optimizer=SGD(learning_rate=0.1),
+        loss='sparse_categorical_crossentropy',# 原来binary_crossentropy
         metrics=['accuracy']
     )
 
     # Entraînement du modèle
-    model.fit(X_lang, y_lang,
-                        epochs=10, 
+    model.fit(X_train, y_train,
+                        epochs=50, 
                         verbose=1, 
                         shuffle=True, 
                         validation_split=0.2)
 
     # pseudo-Évaluation du modèle
-    loss_keras, acc_keras = model.evaluate(X_lang, y_lang, verbose=0)
-
+    loss_keras, acc_keras = model.evaluate(X_test, y_test, verbose=0)
+    y_pred = model.predict(X_test, verbose=0).argmax(axis=1)
     # Affichage des poids appris
-    weights = model.layers[0].get_weights()[0]
-    bias = model.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    #weights = model.layers[0].get_weights()[0]
+    #bias = model.layers[0].get_weights()[1]
+    mo.md(f"Précision du modèle : {acc_keras:.2%}")
+    return (y_pred,)
+
+
+@app.cell
+def _(langs, y_pred, y_test):
+    from sklearn.metrics import ConfusionMatrixDisplay
+
+    ConfusionMatrixDisplay.from_predictions(
+        y_test, y_pred, display_labels=langs,
+        normalize="true", values_format=".2f", cmap="Blues").figure_
     return
 
 
@@ -534,28 +578,37 @@ def _(mo):
 
 
 @app.cell
-def _(X3_lang, nn, torch, y_lang):
-    def build_and_train_lang_classif(X, y):
+def _(X_test, X_train, langs, nn, torch, y_test, y_train):
+    def build_and_train_lang_classif(X, y, n_classes):
         # building the "model"
-        single_neuron = nn.Linear(3, 1)
-        activation = nn.Sigmoid()
-
+        #single_neuron = nn.Linear(3, 1)
+        #activation = nn.Sigmoid()
+        mlp6 = nn.Sequential(
+                nn.Linear(X.shape[1], 32),
+                nn.Tanh(),
+                nn.Linear(32, n_classes),   # pas de softmax : CrossEntropyLoss l'inclut
+            )
         # training
-        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
-        loss_fn = nn.BCELoss() #nn.BCEWithLogitsLoss() # Binary Cross Entropy Loss， 二元交叉熵损失。
-        y_col = y.unsqueeze(1)
+        opt = torch.optim.SGD(mlp6.parameters(), lr=0.1)
+        loss_fn = nn.CrossEntropyLoss() #nn.BCEWithLogitsLoss() # Binary Cross Entropy Loss， 二元交叉熵损失。
 
-        for _ in range(10):
+        for _ in range(500):
             opt.zero_grad()
-            loss = loss_fn(activation(single_neuron(X)), y_col)
+            loss = loss_fn(mlp6(X),y)
             loss.backward()
             opt.step()
+        return mlp6
+
+    classif_pytorch = build_and_train_lang_classif(
+            torch.tensor(X_train, dtype=torch.float32),
+            torch.tensor(y_train, dtype=torch.long),
+            len(langs))
 
         # pseudo-evaluation
-        with torch.no_grad():
-            acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
-        return single_neuron, acc
-    classif_pytorch, acc_pt = build_and_train_lang_classif(torch.tensor(X3_lang, dtype=torch.float32), torch.tensor(y_lang, dtype=torch.float32))
+    with torch.no_grad():
+            pred_pt = classif_pytorch(torch.tensor(X_test, dtype=torch.float32)).argmax(dim=1)
+            acc_pt = (pred_pt == torch.tensor(y_test)).float().mean().item()
+    acc_pt
     return (acc_pt,)
 
 

@@ -21,5 +21,5 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
-...
+La précision du modèle avec les seuls anciens bigrammes est évidemment baisse (par exemple 0.11 en deustch et 0.00 en français. )
+Nous avons alors ajouter des nouveaux possibles bigrammes courants pour essayer. La conséquence est satisfaisante.
