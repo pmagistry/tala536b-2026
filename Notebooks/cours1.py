@@ -458,16 +458,21 @@ def _(mo):
 def _(mo, np):
 
     # chargement
-    def load_data():
+    def load_data(path="./corpus.txt"):
         data = []
-        with open("./corpus.txt") as file:
+        with open(path) as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
                 n_th = text.count("th")
                 n_en = text.count("en")
-                n_os = text.count("os")
+                n_le = text.count("le")
                 l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l, "os": n_os/l}
+                instance = {
+                    "label":label,
+                    "th": n_th / l,
+                    "en": n_en / l,
+                    "le": n_le / l
+                }
                 data.append(instance)
         return data
 
@@ -485,10 +490,11 @@ def _(mo, np):
     normalise_data(data_lang)
 
     # encodage des données
-    X_lang = np.array([[d['th'], d['en'], d['os']] for d in data_lang])
+    X_lang = np.array([[d['th'], d['en']] for d in data_lang])
+    X3_lang = np.array([[d['th'], d['en'], d['le']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
+    return X3_lang, X_lang, load_data, y_lang
 
 
 @app.cell(hide_code=True)
@@ -503,8 +509,7 @@ def _(mo):
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
-        keras.layers.Input(shape=(3,)),
-        Dense(4, activation='tanh'),
+        keras.layers.Input(shape=(2,)),
         Dense(1, activation='sigmoid')
     ])
 
@@ -541,7 +546,7 @@ def _(mo):
 
 
 @app.cell
-def _(X_lang, nn, torch, y_lang):
+def _(X3_lang, nn, torch, y_lang):
     def train_with_pytorch(X, y):
         # conversion des tableaux numpy en tensors Pytorch
         X_tensor = torch.tensor(X, dtype=torch.float32)
@@ -568,14 +573,194 @@ def _(X_lang, nn, torch, y_lang):
         with torch.no_grad():
             acc = ((torch.sigmoid(single_neuron(X_tensor)) > 0.5).float() == y_col).float().mean().item()
         return single_neuron, acc
-    
-    train_with_pytorch(X_lang, y_lang)
 
+    train_with_pytorch(X3_lang, y_lang)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### version corrigée :
+    """)
     return
 
 
 @app.cell
-def _():
+def _(X3_lang, nn, torch, y_lang):
+    def build_and_train_lang_classif(X, y):
+        X = torch.tensor(X, dtype=torch.float32)
+        y = torch.tensor(y, dtype=torch.float32)
+    
+        # building the "model"
+        single_neuron = nn.Linear(3, 1)
+        activation = nn.Sigmoid()
+
+        # training
+        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
+        loss_fn = nn.BCELoss() #nn.BCEWithLogitsLoss()
+        y_col = y.unsqueeze(1)
+
+        for _ in range(10):
+            opt.zero_grad()
+            loss = loss_fn(activation(single_neuron(X)), y_col)
+            loss.backward()
+            opt.step()
+
+        # pseudo-evaluation
+        with torch.no_grad():
+            acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
+        return single_neuron, acc
+
+    build_and_train_lang_classif(X3_lang, y_lang)
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, X3_lang, keras, mo, y_lang):
+    model2 = Sequential([
+        keras.layers.Input(shape=(3,)),
+        Dense(8, activation='tanh'),
+        Dense(1, activation='sigmoid')
+    ])
+
+
+    model2.compile(
+        optimizer=SGD(), # ajuste les poids avec la descente de gradient stochastique
+        loss='binary_crossentropy', # mesure l'écart entre les prédictions et les étiquettes attendues pour la classification binaire
+        metrics=['accuracy'] # demande à Keras de suivre la précision
+    )
+
+    model2.fit(
+        X3_lang, y_lang,
+        epochs=10,
+        verbose=1,
+        shuffle=True,
+        validation_split=0.2
+    )
+
+    loss_keras2, acc_keras2 = model2.evaluate(X3_lang, y_lang, verbose=0)
+
+    weights2 = model2.layers[0].get_weights()[0]
+    bias2 = model2.layers[0].get_weights()[1]
+
+    mo.md(f"Précision du modèle : {acc_keras2:.2%}\n\nPoids pour 'en_freq' : {weights2[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights2[1][0]:.4f}\n\nBiais : {bias2[0]:.4f}")
+    return (model2,)
+
+
+@app.cell
+def _(model2):
+    model2.summary()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # TP 2 : Classification en 6 langues
+    """)
+    return
+
+
+@app.cell
+def _(load_data):
+    data_lang6 = load_data("corpus6.txt")
+    return (data_lang6,)
+
+
+@app.cell
+def _(data_lang6):
+    languages = sorted(set(d["label"] for d in data_lang6))
+    language_to_id = {
+        language : i
+        for i, language in enumerate(languages)
+    }
+
+    print(language_to_id)
+    return (language_to_id,)
+
+
+@app.cell
+def _(data_lang6, language_to_id, np):
+    X_lang6 = np.array([
+        [d["th"], d["en"], d["le"]]
+        for d in data_lang6
+    ], dtype=np.float32)
+
+    y_lang6 = np.array([
+        language_to_id[d["label"]]
+        for d in data_lang6
+    ], dtype=np.int64)
+    return X_lang6, y_lang6
+
+
+@app.cell
+def _(X_lang6, language_to_id, y_lang6):
+    print("Langues :", language_to_id)
+    print("Forme de X :", X_lang6.shape)
+    print("Forme de y :", y_lang6.shape)
+    return
+
+
+@app.cell
+def _(Dense, SGD, Sequential, keras):
+    model_lang6 = Sequential([
+        keras.layers.Input(shape=(3,)), # 3 caractéristiques : th, en, le
+        Dense(8, activation='tanh'), # couche cachée contenant 8 neurones
+        Dense(6, activation="softmax") # une couche contenant 6 neurones pour produire un score pour chacune de mes 6 langues
+    ])
+
+    model_lang6.compile(
+        optimizer=SGD(),
+        loss="sparse_categorical_crossentropy", # car les labels que je donne sont sous forme d'entiers
+        metrics=["accuracy"]
+    )
+
+    model_lang6.summary()
+    return (model_lang6,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    vérification des paramètres :
+    - première couche : 3 x 8 + 8 = 32 paramètres (poids et biais).
+    - couche de sortie : 8 x 6 + 6 = 54 paramètres.
+    TOTAL : 32 + 54 = 86
+    """)
+    return
+
+
+@app.cell
+def _(X_lang6, model_lang6, y_lang6):
+    from sklearn.model_selection import train_test_split
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_lang6, y_lang6,
+        test_size=0.2,
+    )
+
+    # entraînement du modèle
+    model_lang6.fit(
+        X_train, y_train,
+        epochs=10,
+        verbose=1,
+        shuffle=True
+    )
+    return X_test, y_test
+
+
+@app.cell
+def _(X_test, model_lang6, y_test):
+    # évaluation du modèle
+
+    test_loss, test_accuracy = model_lang6.evaluate(
+        X_test, y_test,
+        verbose=0
+    )
+
+    print(f"Loss : {test_loss:.4f}")
+    print(f"Accuracy : {test_accuracy:.2%}")
     return
 
 
