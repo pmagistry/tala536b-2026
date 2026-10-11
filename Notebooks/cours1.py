@@ -548,7 +548,7 @@ def _(mo, np):
     # correspondant à la langue de laphrase, et 0.0 dans les autres coordonnées
     # ex: une phrase en nld sera associée à [0.0, 0.0, 0.0, 0.0, 0.0, 1.0] 
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, data_lang, load_data, normalise_data, y_lang
+    return X_lang, id_to_lg, load_data, normalise_data, y_lang
 
 
 @app.cell(hide_code=True)
@@ -564,8 +564,9 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
         keras.layers.Input(shape=(7,)), # modif car mtn 7 entrées (features)
-        Dense(10), # ajout d'une couche dense, https://stackoverflow.com/questions/46572674/keras-sequential-model-input-layer
-            # c'est quoi son activation par défaut ?? → linear (y = ax)
+        Dense(10, activation='tanh'), # ajout d'une couche dense, https://stackoverflow.com/questions/46572674/keras-sequential-model-input-layer
+            # activation par défaut ?? → linear (y = ax)
+            # mais nous on choisit tanh pour ajouter de la non-linéarité
         Dense(6, activation='softmax') # c'et là que ça doit valoir 6 (nb de langues) ??
     ])
 
@@ -610,21 +611,96 @@ def _(mo):
 
 
 @app.cell
-def _(bias, data_lang, load_data, mo, model, normalise_data, np, weights):
+def _(bias, id_to_lg, load_data, mo, model, normalise_data, np, weights):
     data_lang_full = load_data() # on charge tous les exemples
 
     normalise_data(data_lang_full)
 
     # encodage des données
-    X_lang_full = np.array([[d['th'], d['en'], d['a '], d['o '], d['on'], d['ee'], d['eu']] for d in data_lang]) 
-    y_lang_full = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    X_lang_full = np.array([[d['th'], d['en'], d['a '], d['o '], d['on'], d['ee'], d['eu']] for d in data_lang_full]) 
+    # y_lang_full = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+    y_lang_full = np.array([[1.0 if d['label']==id_to_lg[i] else 0.0 for i in range(6)] for d in data_lang_full])
     # on convertit les labels "deu" en 0.0 (float) et "eng" en 1.0
 
     # pseudo-Évaluation du modèle
     loss_keras_full, acc_keras_full = model.evaluate(X_lang_full, y_lang_full, verbose=0)
 
     # Affichage des poids appris
-    mo.md(f"Précision du modèle : {acc_keras_full:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    mo.md(f"Précision du modèle : {acc_keras_full:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nPoids pour 'de_freq' : {weights[2][0]:.4f}\netc.\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Construction et entraînement du modèle en PyTorch
+    """)
+    return
+
+
+@app.cell
+def _():
+
+    # # MLP in pytorch (object oriented version)
+    # class MLP_2(nn.Module):
+    #     # Module = base class for all NN modules
+    #     # https://docs.pytorch.org/docs/2.14/generated/torch.nn.Module.html
+
+    #     def __init__(self):
+    #         super().__init__()
+    #         self.hidden = nn.Linear(7, 10) # 7 features (proportions bigrammes)
+    #         self.out = nn.Linear(10, 6) # couche de sortie 6 langues : softmax !
+
+    #     def forward(self, x):
+    #         return self.out(torch.tanh(self.hidden(x))) # on glisse une tanh entre les couches linéaires
+    #         # mais juste dans le forward ?? qu'est-ce que ça veut dire ?
+
+    # mlp_2 = MLP_2() # on instancie un objet de la classe MLP créée ci-dessus
+
+    # # training in pytorch
+    # opt = torch.optim.SGD(mlp_2.parameters(), lr=0.5) # d'où sortent mlp.parameters()? 
+    #                                                 # de la superclasse ?
+    # loss_fn = nn.CrossEntropyLoss() # before : nn.BCEWithLogitsLoss()
+
+    # for _ in range(5000):
+    #     opt.zero_grad() # inférence seule pour le calcul de la perte en l'état
+    #     loss = loss_fn(mlp_2(X_xor), y_xor) # comparaison avec la loss fn choisie
+    #                                       # de la prédiction donnée par le mlp pour les X
+    #                                       # vs. le y visés (y_xor)
+    #     loss.backward()  # backpropagation pour améliorer les poids étant donné la perte
+    #     opt.step()  # en fait c'est ça qui agit sur les poids ? pas sûre
+
+    # # pseudo-evaluation
+    # with torch.no_grad():
+    #     acc_mlp_2 = ((torch.sigmoid(mlp(X_xor)) > 0.5).float() == y_xor).float().mean().item()
+    #     hidden_xor = torch.tanh(mlp.hidden(X_xor))
+    return
+
+
+@app.cell
+def _():
+    # # Construction du perceptron en PyTorch
+    # def build_and_train_lang_classif(X, y):
+    #     # building the "model"
+    #     single_neuron = nn.Linear(7, 1)
+    #     activation = nn.Sigmoid()
+
+    #     # training
+    #     opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
+    #     loss_fn = nn.BCELoss() #nn.BCEWithLogitsLoss()
+    #     y_col = y.unsqueeze(1)
+
+    #     for _ in range(10):
+    #         opt.zero_grad()
+    #         loss = loss_fn(activation(single_neuron(X)), y_col)
+    #         loss.backward()
+    #         opt.step()
+
+    #     # pseudo-evaluation
+    #     with torch.no_grad():
+    #         acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
+    #     return single_neuron, acc
+    # classif_pytorch, acc_pt = build_and_train_lang_classif(torch.tensor(X_lang, dtype=torch.float32), torch.tensor(y_lang, dtype=torch.float32))
     return
 
 
