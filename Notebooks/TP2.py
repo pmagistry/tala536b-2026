@@ -47,9 +47,9 @@ def _(mo):
 
 @app.cell
 def _(u):
-    dataset = u.load_data("./corpus.txt", limit=500)
+    dataset = u.load_data("./corpus6.txt", limit=500)
     langues = list(sorted({ d['label'] for d in dataset }))
-    u.normalise_data(dataset)
+    # u.normalise_data(dataset) # on le fait à l'intérieur du réseau
     return dataset, langues
 
 
@@ -67,9 +67,9 @@ def _(mo):
 
 @app.cell
 def _(dataset, langues, train_test_split, u):
-    train, test = train_test_split(dataset, train_size=0.8)
-    X_train, Y_train = u.encode_corpus_one_hot(train, langues)
-    X_test, Y_test = u.encode_corpus_one_hot(test, langues)
+    train, test = train_test_split(dataset, train_size=0.8, random_state=42)
+    X_train, Y_train = u.encode_corpus_sparse(train, langues)
+    X_test, Y_test = u.encode_corpus_sparse(test, langues)
     return X_test, X_train, Y_test, Y_train
 
 
@@ -84,7 +84,8 @@ def _(mo):
 
 @app.cell
 def _(X_train, Y_train, langues, u):
-    model = u.model_one_hot(2,len(langues))
+    model = u.model_sparse(2,len(langues))
+    model.layers[0].adapt(X_train) # on calcule les paramètres de normalisation sur le corpus d'entraînement
     model.fit(X_train, Y_train, epochs=100, batch_size=32)
     return (model,)
 
@@ -126,13 +127,12 @@ def matrice_de_confusion(X_test, Y_test, langues, model, np):
     Y_pred = model.predict(X_test)
 
     ConfusionMatrixDisplay.from_predictions(
-        np.argmax(Y_test, axis=1),     
+        Y_test, # en "sparse", Y est déjà bien encodé
         np.argmax(Y_pred, axis=1), 
         labels=range(len(langues)), 
         display_labels=langues
     )
     plt.show()
-
 
     return
 

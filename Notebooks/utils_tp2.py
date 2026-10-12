@@ -19,6 +19,10 @@ def load_data(corpus_path: str, limit=50) -> list[dict]:
             label, text = line.strip().split(" ",1)
             n_th = text.count("th")
             n_en = text.count("en")
+            n_le = text.count("le")
+            n_st = text.count("st")
+            n_tr = text.count("tr")
+            n_sc = text.count("sc")
             l = len(text)
             instance = {"label":label, "th": n_th / l, "en": n_en /l}
             data.append(instance)
@@ -54,6 +58,13 @@ def encode_corpus_sparse(dataset: list[dict], langues: list[str]) -> tuple[np.ar
 def model_sparse(nb_input=2, nb_classes=6, optim="sgd"):
     model = Sequential([
         keras.layers.Input(shape=(nb_input,)),
+        Normalization(),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
         Dense(nb_classes, use_bias=False, activation='softmax')
     ])
     model.compile(
@@ -68,6 +79,13 @@ def model_sparse(nb_input=2, nb_classes=6, optim="sgd"):
 def model_one_hot(nb_input=2, nb_classes=6, optim="sgd"):
     model = Sequential([
         keras.layers.Input(shape=(nb_input,)),
+        Normalization(),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
         Dense(nb_classes, use_bias=False, activation='softmax')
     ])
     model.compile(
