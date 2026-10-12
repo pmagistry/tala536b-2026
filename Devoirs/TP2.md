@@ -17,7 +17,7 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 
 - diviser correctement le corpus pour avoir des scores valides fait
 est ce que la division implique le melange ? ( shuffle et seed ) fait 
-- bonus: faire une matrice de confusion
+- bonus: faire une matrice de confusion fait 
 
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
@@ -106,8 +106,36 @@ Les architectures peu profondes, dans lesquelles la saturation n'atteint pas un 
 Toutes les configurations nécessitant une non-linéarité lisse, bornée et centrée sur zéro.
 - Relu :  environ 50 % des unités prennent une valeur nulle sous une entrée distribuée aléatoirement, ce qui réduit la charge de calcul et favorise souvent une meilleure généralisation.
 
-![Recap](~./Images/Copies d'écran "Recommandations d'usage")
+![Recap](../recomandation.png "Recommandations d'usage")
 
 
 **Matrice de confusion**
+Pas trouvé dans Keras mais Dans Sickit Learn [voir](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.ConfusionMatrixDisplay.html)
+
+![Matrice de confusion](../matrice_confusion.png "Image")
+
+Pour conclure : 
+
+Le modele a tendance a bien classé lorsqu'il s'agit de l'anglais seulement 7 erreur  et 126 bonne classification.
+Pour l'allemand c'est un peu moin performant : 114 sont bien classé, il se trompe souvant en les classant dans le nld 20 , un peu en espagnol 5 et francai 7 
+L'espagnol : 99 sont bien classés mais il confond pas mal en les mettant sous le label italien 10 ou francais 8.
+Néerlandais: 125 sont bien labelisés, mais il a tendance a classé sous l'etiquette allemand 15 et aussi français 7 et un peu aussi dans les autres langues.
+Français: 96 sont bien labelisés mais le modele a tendance a se tromper en les categorisant comme italien 14, et un peu dans les autres label sauf anglais.
+Italien: 114 sont bien labelisés mais il s'est trompe en labelisant 11 comme etant du français et un peu en nld et espagnol.
+
+Donc le model est globalement assez bon mais il a du mal a correctement reconnaitre le francais,le neerlandais,et l'allemand.
+
+Pour ameliorer la performance il faut surement ajouter encore plus de bigrammes?
+Ou bien je suppose qu'en utilisant TextVectorizer on aurait plus besoin des bi gramme en entree et ce module vectorise directmeent a partir du text et donne un index fixe a chaque mot ce qui ameliorerait drastiquement la performance du modele ?( meme si je ne l'ai pas encore fait)
+
+
+
+
+
+
+
+
+
+
+
 
