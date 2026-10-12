@@ -21,5 +21,4 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
-...
+3 bigrammes donnait un résultat insuffisant. Test effectué avec 20 et 100 bigrammes.
