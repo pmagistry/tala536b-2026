@@ -5,9 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "altair>=6.3.0",
     "keras>=3.15.1",
     "marimo>=0.25.0",
     "matplotlib>=3.11.2",
+    "mcp>=2.3.0",
     "pip>=26.2.1",
     "scikit-learn>=1.9.1",
     "tensorflow>=2.21.0",
