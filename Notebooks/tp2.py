@@ -127,32 +127,42 @@ def _(mo):
 
 
 @app.cell
-def _(X_lang2, nn, torch, y_lang2):
-    # je n'ai pas encore réussi à faire fonctionner avec pytorch, c'est en cours
-    def build_and_train_lang_classif(X, y):
+def _(X_lang2, eval, nn, torch, y_lang2):
+    def build_and_train_lang_classif(X, y, partition: int):
         # building the "model"
         model = nn.Sequential(
-            nn.Linear(12, 6),
+            nn.Linear(3, 12),
             nn.Tanh(),
-            nn.Linear(6, 6),
-            nn.Softmax()
+            nn.Linear(12, 6),
         )
         # training
         opt = torch.optim.SGD(model.parameters(), lr=0.1)
-        loss_fn = nn.MultiLabelMarginLoss()
-        y_col = y.unsqueeze(1)
+        loss_fn = nn.CrossEntropyLoss()
+        y_col = y.argmax(dim=1)  # c'est notamment ça qui m'a bloqué, CrossEntropyLoss attend des index contenus dans tenseur 1D alors que mon gold est fait de vecteurs one hot
 
-        for _ in range(10):
+        for _ in range(20):
             opt.zero_grad()
-            loss = loss_fn((model(X)), y)
+            y_pred = model(X[:-partition])
+            loss = loss_fn(y_pred, y_col[:-partition])
             loss.backward()
             opt.step()
 
         # pseudo-evaluation
         with torch.no_grad():
-            acc = ((torch.sigmoid(model(X)) > 0.5).float() == y_col).float().mean().item()
-        return model, acc
-    classif_pytorch, acc_pt = build_and_train_lang_classif(torch.tensor(X_lang2, dtype=torch.float32), torch.tensor(y_lang2, dtype=torch.float32))
+            y_pred_eval = model(X[-partition:])
+            pred = y_pred_eval.argmax(dim=1)
+            acc = (pred == y_col[-partition:]).float().mean().item()
+        return model, acc, pred
+
+    classif_pytorch, acc_pt, pred = build_and_train_lang_classif(torch.tensor(X_lang2, dtype=torch.float32), torch.tensor(y_lang2, dtype=torch.float32), eval)
+    with torch.no_grad():
+        print(classif_pytorch(torch.tensor(X_lang2, dtype=torch.float32)))
+    print(acc_pt)
+    return (pred,)
+
+
+@app.cell
+def _():
     return
 
 
@@ -207,16 +217,28 @@ def _(
     model,
     np,
     plt,
+    pred,
     y_lang,
+    y_lang2,
 ):
-    y_true = [langs[i] for i in np.argmax(y_lang[-eval:], axis=1)]
-    y_pred = [langs[i] for i in np.argmax(model.predict(X_lang[-eval:], verbose=0), axis=1)]
+    def plot_cm(y_true, y_pred, labels):
+        cm = confusion_matrix(y_true, y_pred, labels=langs)
+        print(cm)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=langs)
+        disp.plot(cmap=plt.cm.Blues, )
+        plt.show()
 
-    cm = confusion_matrix(y_true, y_pred, labels=langs)
-    print(cm)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=langs)
-    disp.plot(cmap=plt.cm.Blues)
-    plt.show()
+    # keras
+    y_true_keras = [langs[i] for i in np.argmax(y_lang[-eval:], axis=1)]
+    y_pred_keras = [langs[i] for i in np.argmax(model.predict(X_lang[-eval:], verbose=0), axis=1)]
+    print("keras")
+    plot_cm(y_true_keras, y_pred_keras, langs)
+
+    # torch
+    y_true_torch = [langs[i] for i in np.argmax(y_lang2[-eval:], axis=1)]
+    y_pred_torch = [langs[i] for i in pred]
+    print("torch")
+    plot_cm(y_true_torch, y_pred_torch, langs)
     return
 
 
