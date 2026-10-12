@@ -31,6 +31,23 @@ def load_data(corpus_path: str, limit=50) -> list[dict]:
     return data
 
 
+def load_text(corpus_path: str, limit=50) -> list[dict]:
+    """
+        charge un corpus de classification
+        produit un dictionnaire avec les clefs label et text
+        à utiliser avec une TextVectorization
+    """
+    data = []
+    with open(corpus_path) as file:
+        for line in file:
+            label, text = line.strip().split(" ",1)
+            instance = {"label":label, "text": text}
+            data.append(instance)
+            if len(data) >= limit:
+                return data
+    return data
+
+
 def normalise_data(dataset):
     for k in dataset[0].keys():
         if k != 'label':
@@ -95,17 +112,3 @@ def model_one_hot(nb_input=2, nb_classes=6, optim="sgd"):
 
     )
     return model
-
-def keras_mlp_sequential(nb_input=2):
-    model = Sequential([
-        keras.layers.Input(shape=(nb_input,)),
-        Dense(8, activation='tanh'),
-        Dense(1, activation='sigmoid')
-    ])
-    model.compile(
-        optimizer=SGD(),
-        loss='binary_crossentropy',
-        metrics=['accuracy'],
-    )
-    return model
-

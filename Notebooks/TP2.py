@@ -27,7 +27,7 @@ def imports():
     from sklearn.model_selection import train_test_split
     import utils_tp2 as u
 
-    return mo, np, train_test_split, u
+    return keras, mo, np, train_test_split, u
 
 
 @app.cell(hide_code=True)
@@ -47,10 +47,12 @@ def _(mo):
 
 @app.cell
 def _(u):
-    dataset = u.load_data("./corpus6.txt", limit=500)
-    langues = list(sorted({ d['label'] for d in dataset }))
+    corpus = u.load_text("./corpus6.txt", limit=500)
+    langues = list(sorted({ d['label'] for d in corpus }))
+    code_langues = {l:i for i, l in enumerate(langues)}
+
     # u.normalise_data(dataset) # on le fait à l'intérieur du réseau
-    return dataset, langues
+    return code_langues, corpus, langues
 
 
 @app.cell(hide_code=True)
@@ -66,10 +68,27 @@ def _(mo):
 
 
 @app.cell
-def _(dataset, langues, train_test_split, u):
-    train, test = train_test_split(dataset, train_size=0.8, random_state=42)
-    X_train, Y_train = u.encode_corpus_sparse(train, langues)
-    X_test, Y_test = u.encode_corpus_sparse(test, langues)
+def _(corpus, keras, train_test_split):
+    train, test = train_test_split(corpus, train_size=0.8, random_state=42)
+    tv = keras.layers.TextVectorization(
+            max_tokens=10,
+            standardize=None,
+            split="character",
+            ngrams=(2,),
+            output_mode="count",
+        )
+    tv.adapt([line['text'] for line in train])
+    return test, train, tv
+
+
+@app.cell
+def _(code_langues, np, test, train, tv):
+
+    X_train = tv([line['text'] for line in train])
+    Y_train = np.array([code_langues[line['label']] for line in train])
+
+    X_test = tv([line['text'] for line in test])
+    Y_test = np.array([code_langues[line['label']] for line in test])
     return X_test, X_train, Y_test, Y_train
 
 
@@ -83,9 +102,9 @@ def _(mo):
 
 
 @app.cell
-def _(X_train, Y_train, langues, u):
-    model = u.model_sparse(2,len(langues))
-    model.layers[0].adapt(X_train) # on calcule les paramètres de normalisation sur le corpus d'entraînement
+def _(X_train, Y_train, langues, tv, u):
+    model = u.model_sparse(tv.vocabulary_size(),len(langues))
+    model.layers[0].adapt(X_train)
     model.fit(X_train, Y_train, epochs=100, batch_size=32)
     return (model,)
 
@@ -133,7 +152,23 @@ def matrice_de_confusion(X_test, Y_test, langues, model, np):
         display_labels=langues
     )
     plt.show()
+    return
 
+
+@app.cell
+def _(model):
+    model.summary()
+    return
+
+
+@app.cell
+def _(tv):
+    tv.get_vocabulary()
+    return
+
+
+@app.cell
+def _():
     return
 
 
