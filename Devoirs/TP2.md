@@ -21,5 +21,8 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 
 ## Expliquer ci-dessous vos difficultés ou posez vos questions
 
-(ou dites si tout va bien !)
-...
+## Aprés avoir fait le tp1, je me suis familiarisé avec certaines notions et fonctions de keras et pytorch.En commençant le tp2 je me suis rendu compte que pour travailler sur plusieurs langues(plus de 2) il faudra utiliser dautrs fonctions qui peuvent traiter plusieurs entrées et sorties. je parle ici de la fonction softmax par exemple qui transforme les scores en probabilités de sorte que la somme de toutes ces probailités vaut 1
+## j'etais contraint aussi de changer la fonction BCE utilisée dans le modele avec 2 langues par categorical Cross Entropy qui permet de traiter plusieurs langues.
+## Concernant la couche utilisée, j'ai conservé le 8 neurones comme c'etait le cas dans le tp1.
+
+## J'ai pas réussi à faire la meme chose avec pytorch puisque ce dernier n'utilise pas les memes fonctions 
