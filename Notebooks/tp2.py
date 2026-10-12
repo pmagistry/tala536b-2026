@@ -632,5 +632,22 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Difficultés rencontrées et questions
+    J'ai eu quelques difficultés pendant ce TP, surtout pour comprendre comment transformer les textes en données utilisables par le réseau.
+
+    J'ai choisi de travailler avec les bigrammes les plus fréquents de chaque langue, mais j'ai eu du mal à comprendre la normalisation au début, notamment pourquoi on utilise la moyenne et l'écart-type.
+
+    J'ai aussi dû réfléchir à la séparation des données d'entraînement et de test pour éviter de fausser les résultats.
+
+    Enfin, je ne savais pas comment créer une matrice de confusion avec Matplotlib, donc j'ai demandé de l'aide à ChatGPT pour cette partie.
+
+    J'ai réussi à obtenir une précision de 96,24 % sur les données de test, mais j'aimerais bien comprendre comment améliorer le modèle, par exemple en ajoutant des couches cachées.
+    """)
+    return
+
+
 if __name__ == "__main__":
     app.run()
