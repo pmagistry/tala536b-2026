@@ -10,7 +10,7 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 - Modifier la structure réseau en conséquence (input et couche de sortie surtout, vous pouvez aussi faire varier la ou les couches cachées) fait 
 - Modifier la fonction de loss en conséquence (et la dernière fonction d'activation en `softmax`) fait 
 
-- bonus (long): suivre le même principe en utilisant TextVectorizer de keras (on verra ça la semaine prochaine)
+- bonus (long): suivre le même principe en utilisant TextVectorizer de keras (on verra ça la semaine prochaine) pas encore fait 
 
 
 ## Réaliser une évaluation propre 
@@ -59,7 +59,7 @@ en ajoutant ces features ci dessous :  j'ai amelioré mon accuracy (autour de 68
             n_zu = text.count("zu")
             n_to = text.count("to")
             n_ve = text.count("ve")
-            n_iù = text.count("iù")
+            n_iu = text.count("iu")
             
             
     '''
@@ -118,14 +118,14 @@ Pour conclure :
 
 Le modele a tendance a bien classé lorsqu'il s'agit de l'anglais seulement 7 erreur  et 126 bonne classification.
 Pour l'allemand c'est un peu moin performant : 114 sont bien classé, il se trompe souvant en les classant dans le nld 20 , un peu en espagnol 5 et francai 7 
-L'espagnol : 99 sont bien classés mais il confond pas mal en les mettant sous le label italien 10 ou francais 8.
+L'espagnol : 98 sont bien classés mais il confond pas mal en les mettant sous le label italien 10 ou francais 8.
 Néerlandais: 125 sont bien labelisés, mais il a tendance a classé sous l'etiquette allemand 15 et aussi français 7 et un peu aussi dans les autres langues.
-Français: 96 sont bien labelisés mais le modele a tendance a se tromper en les categorisant comme italien 14, et un peu dans les autres label sauf anglais.
-Italien: 114 sont bien labelisés mais il s'est trompe en labelisant 11 comme etant du français et un peu en nld et espagnol.
+Français: 97 sont bien labelisés mais le modele a tendance a se tromper en les categorisant comme italien 14, et un peu dans les autres label sauf anglais.
+Italien: 107 sont bien labelisés mais il s'est trompe en labelisant 11 comme etant du français et un peu en nld et espagnol.
 
 Donc le model est globalement assez bon mais il a du mal a correctement reconnaitre le francais,le neerlandais,et l'allemand.
 
-Pour ameliorer la performance il faut surement ajouter encore plus de bigrammes?
+Pour ameliorer la performance il faut surement ajouter encore plus de bigrammes? Plus de features propres à chaque langue proche (voyelles doubles et ij pour le néerlandais, ou ou eu pour le français, zz ou gl pour l’italien, ñ pour l’espagnol??
 Ou bien je suppose qu'en utilisant TextVectorizer on aurait plus besoin des bi gramme en entree et ce module vectorise directmeent a partir du text et donne un index fixe a chaque mot ce qui ameliorerait drastiquement la performance du modele ?( meme si je ne l'ai pas encore fait)
 
 

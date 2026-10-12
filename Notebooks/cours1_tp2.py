@@ -21,7 +21,7 @@ def _():
     from keras.utils import plot_model
     from keras.layers import Activation, Dense
     from keras.models import Sequential
-    from tensorflow.keras.optimizers import SGD
+    from keras.optimizers import SGD
 
     import keras
 
@@ -71,7 +71,7 @@ def _(np):
     random.seed(0) #rend ce melange reproductible
     random.shuffle(all_data) #melange
     data_lang = all_data[:4000]
-    #pourquoi melanger les données? prsq il se peut que les 4000 premiers textes ne concerne qu'une langue donc on ne pourrait pas identifier 3 langues mais apprendrait a reconnaitre une langue par rapport a d'autres.
+    #pourquoi melanger les données? prsq il se peut que les 4000 premiers textes ne concerne qu'une langue donc on ne pourrait pas identifier 6 langues mais le modele n'apprendrait a reconnaitre qu'une langue par rapport a d'autres.
     # normalisation
     def normalise_data(dataset):
         for k in dataset[0].keys():
@@ -129,10 +129,10 @@ def _(
     y6_train,
 ):
     keras.utils.set_random_seed(812) # Source - https://keras.io/examples/keras_recipes/reproducibility_recipes/
-    # Construction du perceptron en Keras
+    # Construction du MLP en Keras
     model6 = Sequential([
         keras.layers.Input(shape=(len(features),)), # modifié le hard code par la longueur de ma variable feature comme ca si j'en ajoute d'autres je n'ai pas besoin de me rappeler qu'il faut que je modifie cette partie aussi.
-        Dense(16,activation='relu'), #peut etre modifie tanh par relu 
+        Dense(16,activation='relu'), #couche cachée : relu (testé aussi avec tanh) 
         Dense(6, activation='softmax'),
     
     ])
