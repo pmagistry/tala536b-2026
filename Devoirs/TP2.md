@@ -19,7 +19,6 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 		- Update : porposition d'Achille : `Multilabelmarginloss` semble être une loss de PyTorch qui remplace bien la CCE de Keras !! peut-être pas dans le contenu, mais dans la forme en tout cas, ce qui me permet de ne pas avoir à proposer un vecteur "gold" de forme différente (https://docs.pytorch.org/docs/2.14/generated/torch.nn.MultiLabelMarginLoss.html)
 - bonus (long): suivre le même principe en utilisant TextVectorizer de keras (on verra ça la semaine prochaine)
 
-
 ## Réaliser une évaluation propre 
 
 - [x] faire marcher l'évaluation ✅ 2026-10-11
