@@ -421,7 +421,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, torch):
     torch.backends.mps.is_available = lambda: False  # force Keras à choisir le CPU
     from pathlib import Path
     import polars as pl
