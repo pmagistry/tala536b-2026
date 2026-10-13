@@ -11,11 +11,12 @@ Sujet du 6 octobre, à pusher le lundi 12 octobre avant 12h.
 	- je me suis aussi amusée à rajouter plus de bigrammes (il y en a 7, donc maintenant la couche d'entrée a une taille de 7)
 - Modifier la structure réseau en conséquence (input et couche de sortie surtout, vous pouvez aussi faire varier la ou les couches cachées)
 	- **en keras** : la dernière couche (sortie) a 6 noeuds, l'idée est qu'avec l'activation `softmax` derrière on se retrouve à avoir un vecteur à 6 dimensions qui comportent chacune une proba entre 0 et 1, la somme valant 1. Un coordonnée = une langue (proba que ce soit dans cette langue-là). J'ai agrandi un peu la couche dense intermédiaire du MLP (à 2 couches) à 10 noeuds.
-	- **en PyTorch :** **à faire...** 
+	- **en PyTorch :** **à faire...**  on change les fonctions d'activation sigmoïde en softmax, les nombres d'entrées/sorties
 - Modifier la fonction de loss en conséquence (et la dernière fonction d'activation en `softmax`)
 	- **en Keras** : j'utilise la loss `categorical_crossentropy`, qui permet avec `softmax` de prédire un vecteur de distribution de probabilités pour chaque langue (vecteur de taille 6 comme on a 6 langues possibles). J'adapte en conséquence le vecteur "gold" `y_lang`, valeur de référence pour l'évaluation (et le calcul de la loss en fait ?? donc pour l'optimisation) qui devient un array contenant des vecteurs de taille 6.
 	- **en PyTorch** : il n'y a pas d'équivalent direct à la loss `categorical_crossentropy`. Deux options : recoder manuellement une fonction de loss équivalente (comme proposé [ici](https://discuss.pytorch.org/t/categorical-cross-entropy-loss-function-equivalent-in-pytorch/85165/4)), ou bien utiliser la loss cousine `CrossEntropyLoss` de la librairie PyTorch, qui fonctionne différemment en adaptant la valeur de référence `y_lang` au format de sortie avec cette loss. 
 		- N'étant pas trop sûre de quoi faire, j'ai laissé ça de côté dans un premier temps...
+		- Update : porposition d'Achille : `Multilabelmarginloss` semble être une loss de PyTorch qui remplace bien la CCE de Keras !! peut-être pas dans le contenu, mais dans la forme en tout cas, ce qui me permet de ne pas avoir à proposer un vecteur "gold" de forme différente (https://docs.pytorch.org/docs/2.14/generated/torch.nn.MultiLabelMarginLoss.html)
 - bonus (long): suivre le même principe en utilisant TextVectorizer de keras (on verra ça la semaine prochaine)
 
 

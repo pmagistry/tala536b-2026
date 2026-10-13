@@ -634,6 +634,8 @@ def _(bias, id_to_lg, load_data, mo, model, normalise_data, np, weights):
 def _(mo):
     mo.md(r"""
     ## Construction et entraînement du modèle en PyTorch
+
+    (à faire plus tard... pas sûre de comment faire le categorical cross entropy avec les moyens de PyTorch)
     """)
     return
 
@@ -678,29 +680,37 @@ def _():
 
 
 @app.cell
-def _():
-    # # Construction du perceptron en PyTorch
-    # def build_and_train_lang_classif(X, y):
-    #     # building the "model"
-    #     single_neuron = nn.Linear(7, 1)
-    #     activation = nn.Sigmoid()
+def _(X_lang, nn, torch, y_lang):
+    input_dimension = 7 # le nb de bigrammes que j'ai mis
+    hidden_layer_size = 10 # comme au-dessus
+    output_dimension = 6 # nb de catégories (lngues) possibles en sortie
 
-    #     # training
-    #     opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
-    #     loss_fn = nn.BCELoss() #nn.BCEWithLogitsLoss()
-    #     y_col = y.unsqueeze(1)
+    # Construction du perceptron en PyTorch
+    def build_and_train_lang_classif(X, y):
+        # building the "model"
+        poly_neuron = nn.Sequential(
+            nn.Linear(input_dimension, hidden_layer_size),
+            nn.Tanh(),
+            nn.Linear(hidden_layer_size, output_dimension)
+        )
+        activation = nn.Softmax() # avant : nn.Sigmoid()
 
-    #     for _ in range(10):
-    #         opt.zero_grad()
-    #         loss = loss_fn(activation(single_neuron(X)), y_col)
-    #         loss.backward()
-    #         opt.step()
+        # training
+        opt = torch.optim.SGD(poly_neuron.parameters(), lr=0.1)
+        loss_fn = nn.MultiLabelMarginLoss # nn.BCELoss() ou nn.BCEWithLogitsLoss()
+        y_col = y.unsqueeze(1)
 
-    #     # pseudo-evaluation
-    #     with torch.no_grad():
-    #         acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
-    #     return single_neuron, acc
-    # classif_pytorch, acc_pt = build_and_train_lang_classif(torch.tensor(X_lang, dtype=torch.float32), torch.tensor(y_lang, dtype=torch.float32))
+        for _ in range(10):
+            opt.zero_grad()
+            loss = loss_fn(activation(poly_neuron(X)), y_col)
+            loss.backward()
+            opt.step()
+
+        # pseudo-evaluation
+        with torch.no_grad():
+            acc = ((torch.softmax(poly_neuron(X)) > 0.5).float() == y_col, output_dimension).float().mean().item()
+        return poly_neuron, acc
+    classif_pytorch, acc_pt = build_and_train_lang_classif(torch.tensor(X_lang, dtype=torch.float32), torch.tensor(y_lang, dtype=torch.float32))
     return
 
 
