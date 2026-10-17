@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -106,6 +106,10 @@ def _(X_train, Y_train, langues, tv, u):
     model = u.model_sparse(tv.vocabulary_size(),len(langues))
     model.layers[0].adapt(X_train)
     model.fit(X_train, Y_train, epochs=100, batch_size=32)
+
+    #model = u.model_one_hot(2, len(langues))
+
+    #model.fit(X_train, Y_train, epochs=100, batch_size=32)
     return (model,)
 
 

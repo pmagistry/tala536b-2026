@@ -665,5 +665,121 @@ def _(model2):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    TextVectorization pour obtenir les bigrammes
+    """)
+    return
+
+
+@app.cell
+def _(langs, np, train_test_split):
+
+    import utils_tp2 as u
+
+    corpus_txt = u.load_text("./corpus6.txt", limit=100000)  # maximiser la limite pour lire le corpus complète -> {"label", "text"}
+    train_txt, test_txt = train_test_split(
+        corpus_txt, test_size=0.2, random_state=42,
+        stratify=[d["label"] for d in corpus_txt]) # proportion équilibrée pour chaque label
+
+    y_train_tv = np.array([langs.index(d["label"]) for d in train_txt])
+    y_test_tv = np.array([langs.index(d["label"]) for d in test_txt])
+    # ['deu','eng','fra','ita','nld','spa']
+    return corpus_txt, test_txt, train_txt, u, y_test_tv, y_train_tv
+
+
+@app.cell
+def _(keras, mo, np, test_txt, train_txt):
+    tv = keras.layers.TextVectorization(
+        max_tokens=300,          # 299 bigrammes les plus fréquentés gardés（taille de l'entrée du réseau）
+        standardize="lower_and_strip_punctuation", # lower and enlever les ponctuation
+        split="character",
+        ngrams=(2,),             # essayer aussi (1, 2, 3)
+        output_mode="count", # outputs = vecteurs dimensionnés par le nombre de chaque bigramme
+    )
+    tv.adapt([d["text"] for d in train_txt])
+
+    def vectorize(texts):
+        X = keras.ops.convert_to_numpy(tv(texts)).astype("float32")
+        return X / np.maximum(X.sum(axis=1, keepdims=True), 1.0)  # comptes -> fréquences : éviter l'influence du longueur de phrase
+
+    X_train_tv = vectorize([d["text"] for d in train_txt])
+    X_test_tv = vectorize([d["text"] for d in test_txt])
+
+    mo.md(f"""
+    Vocabulaire : {tv.vocabulary_size()} tokens — `X_train_tv` : {X_train_tv.shape}
+
+    Les 20 bigrammes les plus fréquents : `{[str(t) for t in tv.get_vocabulary()[1:21]]}`
+    """)
+    return X_test_tv, X_train_tv
+
+
+@app.cell
+def _(
+    X_test_tv,
+    X_train_tv,
+    langs,
+    mo,
+    u,
+    y_pred,
+    y_test,
+    y_test_tv,
+    y_train_tv,
+):
+    model_tv = u.model_sparse(X_train_tv.shape[1], len(langs))
+    model_tv.layers[0].adapt(X_train_tv)   # layers[0] 是模型里的 Normalization 层
+    model_tv.fit(X_train_tv, y_train_tv,
+                 epochs=100, batch_size=32, validation_split=0.2)
+
+    _loss, acc_tv = model_tv.evaluate(X_test_tv, y_test_tv, verbose=0)
+    y_pred_tv = model_tv.predict(X_test_tv, verbose=0).argmax(axis=1)
+    mo.md(f"""
+    Précision avec TextVectorization : **{acc_tv:.2%}**
+
+    (bigrammes choisis à la main : {(y_pred == y_test).mean():.2%})
+    """)
+    return acc_tv, model_tv, y_pred_tv
+
+
+@app.cell
+def _(langs, y_pred_tv, y_test_tv):
+    from sklearn.metrics import ConfusionMatrixDisplay as _CMD
+
+    _CMD.from_predictions(
+        y_test_tv, y_pred_tv, display_labels=langs,
+        normalize="true", values_format=".2f", cmap="Blues").figure_
+    return
+
+
+@app.cell
+def _(
+    X_test_tv,
+    X_train_tv,
+    acc_tv,
+    corpus_txt,
+    mo,
+    model_tv,
+    test_txt,
+    train_txt,
+    y_pred_tv,
+    y_test_tv,
+    y_train_tv,
+):
+    _train_set = {d["text"] for d in train_txt}
+    _dup = [d for d in test_txt if d["text"] in _train_set]
+    _probas = model_tv.predict(X_test_tv, verbose=0)
+
+    mo.md(f"""
+    - train : {len(train_txt)} / test : {len(test_txt)} / total : {len(corpus_txt)}
+    - phrases du test qui existent aussi dans le train : **{len(_dup)}**
+    - accuracy train : {model_tv.evaluate(X_train_tv, y_train_tv, verbose=0)[1]:.2%}
+    - accuracy test : {acc_tv:.2%}
+    - nombre d'erreurs sur le test : {(y_pred_tv != y_test_tv).sum()}
+    - proba max moyenne sur le test : {_probas.max(axis=1).mean():.4f}
+    """)
+    return
+
+
 if __name__ == "__main__":
     app.run()
