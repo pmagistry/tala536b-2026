@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "altair>=6.3.0",
+    "counter>=1.0.0",
     "keras>=3.15.1",
     "marimo>=0.25.0",
     "matplotlib>=3.11.2",

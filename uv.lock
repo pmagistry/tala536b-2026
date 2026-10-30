@@ -522,6 +522,12 @@ wheels = [
 ]
 
 [[package]]
+name = "counter"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/b0/23d19892f8d91ec9c5b8a2035659bce23587fed419d68fa3d70b6abf8bcd/Counter-1.0.0.tar.gz", hash = "sha256:9e008590e360936a66c98e1a01e7a9a0ecf6af19cc588107121f5fb4613bb60c", size = 5239, upload-time = "2012-09-19T20:01:00.212Z" }
+
+[[package]]
 name = "cryptography"
 version = "50.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3075,6 +3081,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "altair" },
+    { name = "counter" },
     { name = "keras" },
     { name = "marimo" },
     { name = "matplotlib" },
@@ -3088,6 +3095,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "altair", specifier = ">=6.3.0" },
+    { name = "counter", specifier = ">=1.0.0" },
     { name = "keras", specifier = ">=3.15.1" },
     { name = "marimo", specifier = ">=0.25.0" },
     { name = "matplotlib", specifier = ">=3.11.2" },
