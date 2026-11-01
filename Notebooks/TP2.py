@@ -71,12 +71,12 @@ def _(mo):
 def _(corpus, keras, train_test_split):
     train, test = train_test_split(corpus, train_size=0.8, random_state=42)
     tv = keras.layers.TextVectorization(
-            max_tokens=10,
-            standardize=None,
-            split="character",
-            ngrams=(2,),
-            output_mode="count",
-        )
+        max_tokens=5000,
+        standardize=None,
+        split="whitespace",
+        output_mode="int",
+        output_sequence_length=200
+    )
     tv.adapt([line['text'] for line in train])
     return test, train, tv
 
