@@ -14,10 +14,10 @@ def _():
 
 @app.cell
 def _(mo):
-    random_state_slider = mo.ui.slider(0,100)
-    w1_slide = mo.ui.slider(-2,2,0.1)
-    w2_slide = mo.ui.slider(-2,2,0.1)
-    b_slide = mo.ui.slider(-10,10,0.5)
+    random_state_slider = mo.ui.slider(0, 100)
+    w1_slide = mo.ui.slider(-2, 2, 0.1)
+    w2_slide = mo.ui.slider(-2, 2, 0.1)
+    b_slide = mo.ui.slider(-10, 10, 0.5)
     return b_slide, random_state_slider, w1_slide, w2_slide
 
 
@@ -57,19 +57,20 @@ def _(mo):
 def _(np, random_state_slider):
     np.random.seed(random_state_slider.value)
     coefs = np.random.normal(size=3)
-    def f(x):
-        return sum([coefs[i]*(x**i) for i in range(len(coefs))])
 
-    X = np.random.sample(size=50)*6 -3
+    def f(x):
+        return sum([coefs[i] * (x**i) for i in range(len(coefs))])
+
+    X = np.random.sample(size=50) * 6 - 3
     Y = np.array([f(x) for x in X])
-    noise = np.random.normal(0,0.5,size=len(X))
+    noise = np.random.normal(0, 0.5, size=len(X))
     Y = Y + noise
     return X, Y
 
 
 @app.cell
 def _():
-    #coefs
+    # coefs
     return
 
 
@@ -78,7 +79,7 @@ def _(X, Y, b_slide, mo, np, w1_slide, w2_slide):
     import altair as alt
     import polars as pl
 
-    df = pl.DataFrame(data={'x': X, 'y': Y})
+    df = pl.DataFrame(data={"x": X, "y": Y})
 
     chart = (
         alt.Chart(df)
@@ -87,21 +88,15 @@ def _(X, Y, b_slide, mo, np, w1_slide, w2_slide):
             x="x",
             y="y",
         )
-
     )
-    #chart = chart + chart.mark_line(color="green").encode(x="x", y="yth")
+    # chart = chart + chart.mark_line(color="green").encode(x="x", y="yth")
 
     def learned_f(x):
-        return x*w1_slide.value + (x**2)*w2_slide.value + b_slide.value
+        return x * w1_slide.value + (x**2) * w2_slide.value + b_slide.value
 
-    X_poly = np.linspace(X.min() , X.max(),20)
-    df_poly = pl.DataFrame({'x':X_poly, 'y':learned_f(X_poly) })
-    line = (
-        alt.Chart(df_poly)
-        .mark_line(color="red")
-        .encode(x="x", y="y")
-    )
-
+    X_poly = np.linspace(X.min(), X.max(), 20)
+    df_poly = pl.DataFrame({"x": X_poly, "y": learned_f(X_poly)})
+    line = alt.Chart(df_poly).mark_line(color="red").encode(x="x", y="y")
 
     chart = mo.ui.altair_chart(chart + line)
     return alt, chart, learned_f, pl
@@ -123,7 +118,7 @@ def _(chart):
 
 @app.cell
 def _(X, Y, learned_f, np):
-    MSE = np.mean([(Y[i] - learned_f(X[i]))**2 for i in range(len(X))])
+    MSE = np.mean([(Y[i] - learned_f(X[i])) ** 2 for i in range(len(X))])
     return (MSE,)
 
 
@@ -146,15 +141,15 @@ def _(MSE, mo):
 @app.cell
 def _(X, Y, alt, b_slide, np, pl, w1_slide, w2_slide):
     def loss_w1(v):
-        def fw1(x,v):
-            return x*v + (x**2)*w2_slide.value + b_slide.value
-        return  np.mean([(Y[i] - fw1(X[i],v))**2 for i in range(len(X))])
+        def fw1(x, v):
+            return x * v + (x**2) * w2_slide.value + b_slide.value
 
-    V = np.linspace(-2,2,30)
+        return np.mean([(Y[i] - fw1(X[i], v)) ** 2 for i in range(len(X))])
+
+    V = np.linspace(-2, 2, 30)
     Yw1 = [loss_w1(x) for x in V]
 
-
-    _df = pl.DataFrame(data={'w1': V, 'Loss': Yw1})
+    _df = pl.DataFrame(data={"w1": V, "Loss": Yw1})
 
     _chart = (
         alt.Chart(_df)
@@ -163,24 +158,25 @@ def _(X, Y, alt, b_slide, np, pl, w1_slide, w2_slide):
             x="w1",
             y="Loss",
         )
-
     )
-    _chart + alt.Chart(pl.DataFrame(data={'v':[w1_slide.value]})).mark_rule().encode(x='v')
+    _chart + alt.Chart(pl.DataFrame(data={"v": [w1_slide.value]})).mark_rule().encode(
+        x="v"
+    )
     return
 
 
 @app.cell
 def _(X, Y, alt, b_slide, np, pl, w1_slide, w2_slide):
     def loss_w2(v):
-        def fw2(x,v):
-            return (x**2)*v + x*w1_slide.value + b_slide.value
-        return  np.mean([(Y[i] - fw2(X[i],v))**2 for i in range(len(X))])
+        def fw2(x, v):
+            return (x**2) * v + x * w1_slide.value + b_slide.value
 
-    _V = np.linspace(-2,2,30)
+        return np.mean([(Y[i] - fw2(X[i], v)) ** 2 for i in range(len(X))])
+
+    _V = np.linspace(-2, 2, 30)
     _Yw2 = [loss_w2(x) for x in _V]
 
-
-    _df = pl.DataFrame(data={'w2': _V, 'Loss': _Yw2})
+    _df = pl.DataFrame(data={"w2": _V, "Loss": _Yw2})
 
     _chart = (
         alt.Chart(_df)
@@ -189,24 +185,25 @@ def _(X, Y, alt, b_slide, np, pl, w1_slide, w2_slide):
             x="w2",
             y="Loss",
         )
-
     )
-    _chart + alt.Chart(pl.DataFrame(data={'v':[w2_slide.value]})).mark_rule().encode(x='v')
+    _chart + alt.Chart(pl.DataFrame(data={"v": [w2_slide.value]})).mark_rule().encode(
+        x="v"
+    )
     return
 
 
 @app.cell
 def _(X, Y, alt, b_slide, np, pl, w1_slide, w2_slide):
     def loss_b(v):
-        def fb(x,v):
-            return (x**2)*w2_slide.value + x*w1_slide.value + v
-        return  np.mean([(Y[i] - fb(X[i],v))**2 for i in range(len(X))])
+        def fb(x, v):
+            return (x**2) * w2_slide.value + x * w1_slide.value + v
 
-    _V = np.linspace(-10,10,50)
+        return np.mean([(Y[i] - fb(X[i], v)) ** 2 for i in range(len(X))])
+
+    _V = np.linspace(-10, 10, 50)
     _Yb = [loss_b(x) for x in _V]
 
-
-    _df = pl.DataFrame(data={'b': _V, 'Loss': _Yb})
+    _df = pl.DataFrame(data={"b": _V, "Loss": _Yb})
 
     _chart = (
         alt.Chart(_df)
@@ -215,9 +212,45 @@ def _(X, Y, alt, b_slide, np, pl, w1_slide, w2_slide):
             x="b",
             y="Loss",
         )
-
     )
-    _chart + alt.Chart(pl.DataFrame(data={'v':[b_slide.value]})).mark_rule().encode(x='v')
+    _chart + alt.Chart(pl.DataFrame(data={"v": [b_slide.value]})).mark_rule().encode(
+        x="v"
+    )
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
     return
 
 
