@@ -71,23 +71,24 @@ def _(mo):
 def _(corpus, keras, train_test_split):
     train, test = train_test_split(corpus, train_size=0.8, random_state=42)
     tv = keras.layers.TextVectorization(
-            max_tokens=10,
-            standardize=None,
-            split="character",
-            ngrams=(2,),
-            output_mode="count",
+            max_tokens=5000,
+            #standardize=None,
+            split="whitespace",
+            output_mode="int",              
+            output_sequence_length=200,
+            #ngrams=(2,),
+            #output_mode="count",
         )
     tv.adapt([line['text'] for line in train])
     return test, train, tv
 
 
 @app.cell
-def _(code_langues, np, test, train, tv):
-
-    X_train = tv([line['text'] for line in train])
+def _(code_langues, keras, np, test, train, tv):
+    X_train = keras.ops.convert_to_numpy(tv([line['text'] for line in train]))
     Y_train = np.array([code_langues[line['label']] for line in train])
 
-    X_test = tv([line['text'] for line in test])
+    X_test = keras.ops.convert_to_numpy(tv([line['text'] for line in test]))
     Y_test = np.array([code_langues[line['label']] for line in test])
     return X_test, X_train, Y_test, Y_train
 
@@ -102,10 +103,19 @@ def _(mo):
 
 
 @app.cell
-def _(X_train, Y_train, langues, tv, u):
-    model = u.model_sparse(tv.vocabulary_size(),len(langues))
-    model.layers[0].adapt(X_train)
-    model.fit(X_train, Y_train, epochs=100, batch_size=32)
+def _(X_train, Y_train, keras, langues, tv):
+    model = keras.Sequential([
+        keras.layers.Input(shape=(200,)),                         # = output_sequence_length
+        keras.layers.Embedding(tv.vocabulary_size(), 64),         # (batch, 200) -> (batch, 200, 64)
+        keras.layers.GlobalMaxPooling1D(),                    # (batch, 200, 64) -> (batch, 64)
+        keras.layers.Dropout(0.3),
+        keras.layers.Dense(len(langues), activation='softmax'),   # (batch, 64) -> (batch, nb_classes)
+    ])
+    model.compile(optimizer="adam", loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+    #model = u.model_sparse(tv.vocabulary_size(),len(langues))
+    #model.layers[0].adapt(X_train)
+    model.fit(X_train, Y_train, epochs=100, batch_size=32, validation_split=0.2)
 
     #model = u.model_one_hot(2, len(langues))
 
