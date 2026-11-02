@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -75,7 +75,7 @@ def _(corpus, keras, train_test_split):
             standardize=None,
             split="character",
             ngrams=(2,),
-            output_mode="count",
+            output_mode="int",
         )
     tv.adapt([line['text'] for line in train])
     return test, train, tv
@@ -103,8 +103,7 @@ def _(mo):
 
 @app.cell
 def _(X_train, Y_train, langues, tv, u):
-    model = u.model_sparse(tv.vocabulary_size(),len(langues))
-    model.layers[0].adapt(X_train)
+    model = u.model_embedding(tv.vocabulary_size(),len(langues))
     model.fit(X_train, Y_train, epochs=100, batch_size=32)
     return (model,)
 

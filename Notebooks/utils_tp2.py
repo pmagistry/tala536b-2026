@@ -112,3 +112,25 @@ def model_one_hot(nb_input=2, nb_classes=6, optim="sgd"):
 
     )
     return model
+
+
+def model_embedding(nb_input=2, nb_classes=6, optim="sgd"):
+    model = Sequential([
+        keras.layers.Input(shape=(None,)),
+        keras.layers.Embedding(nb_input, 128),
+        keras.layers.GlobalAveragePooling1D(),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(nb_classes, use_bias=False, activation='softmax')
+    ])
+    model.compile(
+        optimizer=optim,
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy'],
+
+    )
+    return model
