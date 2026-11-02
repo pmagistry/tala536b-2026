@@ -47,7 +47,7 @@ def _(mo):
 
 @app.cell
 def _(u):
-    corpus = u.load_text("./corpus6.txt", limit=500)
+    corpus = u.load_text("././Notebooks/corpus6.txt", limit=500)
     langues = list(sorted({ d['label'] for d in corpus }))
     code_langues = {l:i for i, l in enumerate(langues)}
 
@@ -71,7 +71,7 @@ def _(mo):
 def _(corpus, keras, train_test_split):
     train, test = train_test_split(corpus, train_size=0.8, random_state=42)
     tv = keras.layers.TextVectorization(
-            max_tokens=10,
+            max_tokens=100,
             standardize=None,
             split="character",
             ngrams=(2,),
