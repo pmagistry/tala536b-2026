@@ -120,7 +120,7 @@ def _(X_lin, mo, torch, y_lin):
 
     w_perc, b_perc, n_ep = train_perceptron(X_lin, y_lin)
     mo.md("entrainement d'un perceptron")
-    return b_perc, train_perceptron, w_perc
+    return b_perc, w_perc
 
 
 @app.cell
@@ -548,24 +548,21 @@ def _(mo):
 
 
 @app.cell
-def _(X_lang, mo, plot_artifical_data, train_perceptron, y_lang):
+def _(X_lang, nn, torch, y_lang):
     # classer avec pytorch
 
     """
     On peut réutiliser la fonction 'train_perceptron' présente au début du notebook, en utilisant les variables 'X_lang' et 'y_lang' pour traiter les données du corpus 
     """
-
+    """
     w_lang, b_lang, n_ep_lang = train_perceptron(X_lang, y_lang)
     mo.md('entrainement du perceptron sur les données textuelles')
 
     fig_lang = plot_artifical_data(X_lang, y_lang, w_lang, b_lang, 'Perceptron pour la classification en langues')
 
     mo.vstack([mo.md('Graphe obtenu :'), fig_lang,])
-    return
+    """
 
-
-@app.cell
-def _(X_lang, nn, torch, y_lang):
     ## correction classification avec pytorch
 
     def build_and_train_lang_classif(X, y):
@@ -601,7 +598,7 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     """
 
     model_3 = Sequential([
-        keras.layers.Input(shape=(3,)), #correction du tp1
+        keras.layers.Input(shape=(2,)), #correction du tp1
         Dense(8, activation='tanh'),  #correction du tp1
         Dense(1, activation='sigmoid')
     ])
@@ -630,33 +627,20 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
 def _(Dense, SGD, Sequential, keras, mo, normalise_data, np):
     # ajouter un bigramme 
 
+    import tools as tls
     """
     Pour rajouter un bigramme, je vais rajouter un deuxième bigramme courant en anglais, voir si joindre le compte de celui-ci et 'th' permet d'améliorer les performances du perceptron pour reconnaitre la langue. En recherchant, j'ai sélectionné le bigramme 'in', qui est l'un des plus courant en anglais après 'th'. Lors de la transformation des données en array, on additionne les fréquences relatives de ces deux bigrammes, pour tenter de renforcer les performances pour la reconnaissance de l'anglais
     """
 
-    def load_data_in():
-        data = []
-        with open("../Data/corpus.txt") as file:
-            for line in file:
-                label, text = line.strip().split(" ",1)
-                n_th = text.count("th")
-                n_en = text.count("en")
-                n_in = text.count("in")
-                l = len(text)
-                instance = {"label":label, "th": n_th / l, "en": n_en /l, "in": n_in/l}
-                data.append(instance)
-        return data
-
-    data_lang_in = load_data_in()[:200]
+    data_lang_in = tls.load_data('../Data/corpus.txt', ['th', 'en', 'in'])[:200]
 
     normalise_data(data_lang_in)
 
-    X_lang_in = np.array([[d['th'], d['en']+d['in']] for d in data_lang_in])
+    X_lang_in = np.array([[d['th'], d['en'], d['in']] for d in data_lang_in])
     y_lang_in = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang_in])
-    mo.md("essayez avec et sans normalisation !")
 
     model_in = Sequential([
-        keras.layers.Input(shape=(2,)),
+        keras.layers.Input(shape=(3,)),
         Dense(1, activation='sigmoid'),
     ])
 
@@ -727,103 +711,6 @@ def _(Dense, SGD, Sequential, keras, mo, normalise_data, np):
     weights_fr = model_fr.layers[0].get_weights()[0]
     bias_fr = model_fr.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras_fr:.2%}\n\nPoids pour 'le_freq' : {weights_fr[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights_fr[1][0]:.4f}\n\nBiais : {bias_fr[0]:.4f}")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## TP2
-    """)
-    return
-
-
-@app.cell
-def _(Dense, SGD, Sequential, keras, mo, normalise_data, np):
-    # perceptron multicouche pour 6 langues 
-
-    # pour choisir les bigrammes qui vous nous permettre de différentier les langues entre elles, j'ai cherché quels étaient les bigrammes les plus fréquents dans chaque langues et j'ai comparé ces résulats avec ce qui 'était observables dans le corpus, afin de choisir des candidats ayant un plus haut potentiel de discrimination entre les langues
-
-    from tp2 import create_y_lang
-
-    def load_data_6():  
-        data = []
-        with open("../Data/corpus6.txt") as file:   # <- chargement du corpus 6 langues
-            for line in file:
-                label, text = line.strip().split(" ",1)
-                n_le = text.count("le") #français
-                n_th = text.count("th") #anglais
-                n_en = text.count("en") #allemand
-                n_aa = text.count("aa") #néerlandais
-                n_ci = text.count("ci") #espagnol
-                n_zi = text.count("zi") #italien
-                l = len(text)
-                instance = {"label":label, "le": n_le / l, "th": n_th / l, "en": n_en / l, "aa": n_aa / l, "ci": n_ci / l, "zi" : n_zi / l}
-                data.append(instance)
-        return data
-
-    data_lang_6 = load_data_6()[:200]
-
-    normalise_data(data_lang_6)
-
-    X_lang_6 = np.array([[d['th'], d['le'], d['en'], d['aa'], d['ci'], d['zi']] for d in data_lang_6])
-    y_lang_6 = create_y_lang(data_lang_6) # pour chaque instance, on regarde quel est le label donné, et on crée un vecteur one-hot correspondant, l'indice de la valeur 1.0 correspondant à l'ordrde dans lequel nos langues sont comptabilisées plus haut
-
-    model_6 = Sequential([
-        keras.layers.Input(shape=(6,)),
-        Dense(64, activation='tanh'),
-        Dense(6, activation='softmax'),
-    ])
-
-    model_6.compile(
-        optimizer=SGD(),
-        loss='categorical_crossentropy',
-        metrics=['accuracy']
-    )
-
-    model_6.fit(X_lang_6, y_lang_6,
-                        epochs=10, 
-                        verbose=1, 
-                        shuffle=True, 
-                        validation_split=0.2)
-
-    loss_keras_6, acc_keras_6 = model_6.evaluate(X_lang_6, y_lang_6, verbose=0)
-
-    weights_6 = model_6.layers[0].get_weights()[0]
-    bias_6 = model_6.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras_6:.2%}\n\nPoids pour 'le_freq' : {weights_6[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights_6[1][0]:.4f}\n\nPoids pour 'en_freq' : {weights_6[2][0]:.4f}\n\nPoids pour 'aa_freq' : {weights_6[3][0]:.4f}\n\nPoids pour 'ci_freq' : {weights_6[4][0]:.4f}\n\nPoids pour 'zi_freq' : {weights_6[5][0]:.4f}\n\nBiais : {bias_6[0]:.4f}")
-    return load_data_6, model_6
-
-
-@app.cell
-def _(load_data_6, model_6, normalise_data, np):
-    # évaluation du modèle 
-
-    """
-    dans l'exercice du dessus, on utilise les 200 premières lignes du corpus pour procéder à l'entrainement du modèle
-
-    pour le tester, on va donc prendre d'autres données du même corpus
-    """
-
-    from tp2 import format_prediction
-
-    sample = load_data_6()[1000:1100]
-
-    real_answers = [d['label'] for d in sample]
-
-    normalise_data(sample)
-
-    data = np.array([[d['th'], d['le'], d['en'], d['aa'], d['ci'], d['zi']] for d in sample])
-
-    predictions = model_6.predict(data)
-
-    match = 0
-
-    for i, pred in enumerate(predictions) : 
-        print(f"Langue Prédite : {format_prediction(pred)} / Bonne Catégorie : {real_answers[i]}")
-        if format_prediction(pred) == real_answers[i]:
-            match += 1
-    print(f"{match / len(predictions) * 100}%")
     return
 
 
