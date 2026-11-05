@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -13,20 +13,19 @@ def _():
     os.environ["KERAS_BACKEND"] = "torch"
     import keras
     from keras.models import Sequential
-    from keras.layers import Dense, Embedding, GlobalMaxPooling1D, Normalization, Dropout
-    from keras.optimizers import SGD
+    from keras.layers import Dense, Embedding, GlobalMaxPooling1D, GlobalAveragePooling1D, Normalization, Dropout
+    from keras.optimizers import Adam
     from sklearn.model_selection import train_test_split
-    import utils_tp3 as u
     from sklearn.metrics import ConfusionMatrixDisplay
     import matplotlib.pyplot as plt
 
     return (
+        Adam,
         ConfusionMatrixDisplay,
         Dense,
         Dropout,
         Embedding,
         GlobalMaxPooling1D,
-        SGD,
         Sequential,
         json,
         keras,
@@ -60,6 +59,7 @@ def _(corpus, keras, train_test_split):
         split="whitespace",
         ngrams=None,
         output_mode="int",
+        output_sequence_length=32
     )
     tv.adapt([line['text'] for line in train])
     return test, train, tv
@@ -76,20 +76,17 @@ def _(code_categories, np, test, train, tv):
 
 
 @app.cell
-def _(Dense, Dropout, Embedding, GlobalMaxPooling1D, SGD, Sequential):
+def _(Adam, Dense, Dropout, Embedding, GlobalMaxPooling1D, Sequential):
     def model_emb(nb_input, nb_classes):
         model = Sequential([
             Embedding(input_dim=nb_input, output_dim=128),
             GlobalMaxPooling1D(),
             Dropout(0.4),
             Dense(128, activation='relu'),
-            Dropout(0.4),
-            Dense(128, activation='relu'),
-            Dropout(0.4),
             Dense(nb_classes, activation='softmax')
         ])
         model.compile(
-            optimizer=SGD(learning_rate=0.1, momentum=0.2),
+            optimizer=Adam(),
             loss='sparse_categorical_crossentropy',
             metrics=['accuracy'],
         )
@@ -134,6 +131,19 @@ def _(tv):
 @app.cell
 def _(model):
     model.summary()
+    return
+
+
+@app.cell
+def _():
+    from gensim.models import KeyedVectors
+
+    return (KeyedVectors,)
+
+
+@app.cell
+def _(KeyedVectors):
+    vec = KeyedVectors.load_word2vec_format("../data/frWac_non_lem_no_postag_no_phrase_200_cbow_cut100.bin", binary=True, unicode_errors="ignore")
     return
 
 
