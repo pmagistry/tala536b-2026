@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium")
 
 
@@ -80,7 +80,7 @@ def _(model, tv, u):
     import plotly.express as px
     from umap import UMAP
 
-    u.plot_embeddings(model, tv, 0)
+    u.plot_embeddings(model, tv, 1)
     return
 
 
