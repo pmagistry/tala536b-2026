@@ -154,8 +154,7 @@ def model_dropout(nb_input, nb_classes, rate=0.5):
     return model
 
 def model_embedding(vocab_size, seq_len, nb_classes, dim = 32, pooling = "avg", rate = 0.3):
-    pool = (keras.layers.GlobalAveragePooling1D() if pooling == "avg"
-            else keras.layers.GlobalMaxPooling1D())
+    pool = (keras.layers.GlobalAveragePooling1D() if pooling == "avg" else keras.layers.GlobalMaxPooling1D())
     model = keras.Sequential([
         keras.layers.Input(shape = (seq_len,)),
         keras.layers.Embedding(input_dim = vocab_size, output_dim = dim),
