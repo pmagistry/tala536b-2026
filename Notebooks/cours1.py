@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.0"
+app = marimo.App()
 
 
 @app.cell
@@ -487,7 +487,7 @@ def _(mo, np):
     X_lang = np.array([[d['th'], d['en']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
     mo.md("essayez avec et sans normalisation !")
-    return X_lang, y_lang
+    return X_lang, normalise_data, y_lang
 
 
 @app.cell(hide_code=True)
@@ -527,6 +527,151 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
     mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    le modèle précédent en PyTorch
+    """)
+    return
+
+
+@app.cell
+def _(X_lang, nn, torch, y_lang):
+    XTen = torch.tensor(X_lang, dtype = torch.float32)
+    yTen = torch.tensor(y_lang, dtype = torch.float32).unsqueeze(1)
+
+    class PerceptronTorch(nn.Module):
+        def __init__(self, inputSize = 2):
+            super().__init__()
+            self.linear = nn.Linear(inputSize, 1)
+        def forward(self, x):
+            return self.linear(x)
+
+    modelTorch = PerceptronTorch(inputSize = 2)
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.SGD(modelTorch.parameters(), lr = 0.1)
+
+    for epoch in range(500):
+        optimizer.zero_grad()               
+        outputs = modelTorch(XTen)        
+        loss = criterion(outputs, yTen) 
+        loss.backward()                     
+        optimizer.step()                   
+
+    with torch.no_grad():
+        probs = torch.sigmoid(modelTorch(XTen))
+        predictions = (probs > 0.5).float()
+        accTorch = (predictions == yTen).float().mean().item()
+
+        weightsTorch = modelTorch.linear.weight.data.numpy()[0]
+        biasTorch = modelTorch.linear.bias.data.item()
+
+    print(f"Précision du modèle Pytorch: {accTorch:.2%}")
+    print(f"Poids pour 'th_freq' : {weightsTorch[0]:.4f}")
+    print(f"Poids pour 'en_freq' : {weightsTorch[1]:.4f}")
+    print(f"Biais : {biasTorch:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Ajout de couche en Kernas :
+    Je n'ai pas réussi à trouver la syntaxe exacte. Je suppose que l'ajout d'une couche intermédiaire (cachée) non-linéaire se fait avec "Dense(n, activation='tanh')" (je ne sais pas combien faut mettre à n).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Ajout d'un troisième bigramme
+    """)
+    return
+
+
+@app.cell
+def _(normalise_data, np):
+    def load_data2():
+        data = []
+        with open("./corpus.txt") as file:
+            for line in file:
+                label, text = line.strip().split(" ", 1)
+                n_th = text.count("th")
+                n_en = text.count("en")
+                n_wh = text.count("wh")  # Bigramme pour l'anglais
+                l = len(text)
+                instance = {
+                    "label": label, 
+                    "th": n_th / l, 
+                    "en": n_en / l, 
+                    "wh": n_wh / l
+                }
+                data.append(instance)
+        return data
+
+    dataLang = load_data2()[:200]
+    normalise_data(dataLang)
+    X_lang3d = np.array([[d['th'], d['en'], d['wh']] for d in dataLang])
+    return (X_lang3d,)
+
+
+@app.cell
+def _(Dense, SGD, Sequential, X_lang3d, keras, mo, y_lang):
+    model3d = Sequential([
+        keras.layers.Input(shape = (3,)),                 
+        Dense(1, activation = 'sigmoid')    
+    ])
+
+    model3d.compile(
+        optimizer = SGD(learning_rate = 0.1),
+        loss = 'binary_crossentropy',
+        metrics = ['accuracy']
+    )
+
+    model3d.fit(
+        X_lang3d, y_lang,
+        epochs = 200,
+        verbose = 0
+    )
+
+    loss3d, acc3d = model3d.evaluate(X_lang3d, y_lang, verbose=0)
+    weights3d = model3d.layers[0].get_weights()[0]
+    bias3d = model3d.layers[0].get_weights()[1]
+    mo.md(f"Précision du modèle 3D : {acc3d:.2%}\n\n"
+          f"loss : {loss3d:.4f}\n\n "
+        f"Poids pour 'th_freq' : {weights3d[0][0]:.4f}\n\n"
+        f"Poids pour 'en_freq' : {weights3d[1][0]:.4f}\n\n"
+        f"Poids pour 'wh_freq' : {weights3d[2][0]:.4f}\n\n"
+        f"Biais : {bias3d[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Proposer des pistes (sans coder) pour classer des documents entre 3 langues ou plus.
+
+    Aucune piste à proposer.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Expliquer ci-dessous vos difficultés ou posez vos questions
+    J’ai trouvé le TP assez difficile mais très instructif. Ça m’a obligé à rechercher et à comprendre les notions de base que je ne connaissais pas du tout ! Je les ai étudiées sur internet (je n’ai pas encore eu le temps de me plonger dans le livre « Speech and Language Processing »). J’ai bien compris les principes, ainsi que les outils mathématiques.
+
+    En étudiant le code ligne par ligne, j’ai également bien assimilé sa structure et j’ai pu faire une partie des exercices en prenant comme exemple le code fourni. Mais je suis conscient qu’à l’heure actuelle, je ne serais pas capable d’écrire ce genre de code en partant de zéro.
+
+    Difficultés et questions :
+    - Je ne comprends pas bien pourquoi on utilise comme loss la fonction avec Logits (BCEWithLogitsLoss) et non sans. D’après ce que j’ai compris, le logit est le résultat brut avant l’application de la sigmoïde.
+    -
+    """)
     return
 
 
