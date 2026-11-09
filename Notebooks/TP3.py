@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,7 +25,7 @@ def imports():
 
 @app.cell
 def _(u):
-    corpus, labels, encodeur = u.load_data()
+    corpus, labels, encodeur = u.load_data("../data/corpus-classif.json")
     tv = u.create_textvectorizer(corpus, 5000)
     train, dev, test = u.stratified_split(corpus)
     return dev, encodeur, labels, test, train, tv
@@ -41,11 +41,11 @@ def _(dev, encodeur, test, train, tv, u):
 
 @app.cell
 def _(X_train, X_valid, Y_train, Y_valid, keras, labels, tv, u):
-    model = u.create_model_func(30, tv.get_vocabulary(), nb_classes=len(labels), optim='adam')
+    model = u.create_model_pretrained(30, tv.get_vocabulary(), nb_classes=len(labels), optim='adam', trainable=False)
     history = model.fit(X_train, Y_train, 
-                        epochs = 400,
+                        epochs = 100,
                         validation_data=(X_valid, Y_valid),
-                        callbacks=[keras.callbacks.EarlyStopping("val_accuracy", start_from_epoch=50, patience=30)]
+                        callbacks=[keras.callbacks.EarlyStopping("val_accuracy", start_from_epoch=10, patience=15)]
                        )
     return history, model
 

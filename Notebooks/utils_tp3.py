@@ -95,6 +95,37 @@ def create_model_seq(nb_input, vocab: list[str], emb_size=200, nb_classes=6, dro
     return model
 
 
+def create_model_pretrained(nb_input, vocab: list[str], emb_size=200, nb_classes=6, dropout=0.5, optim="sgd", trainable=True):
+    """
+        Modèle simple, "séquentiel"
+    """
+    voc_size = len(vocab)
+    model = keras.Sequential([
+        keras.layers.Input(shape=(nb_input,)),
+        keras.layers.Embedding(
+            voc_size,
+            emb_size,
+            embeddings_initializer=PretrainedInitializer(
+                "../data/frWac_non_lem_no_postag_no_phrase_200_cbow_cut100.bin",
+                vocab
+            ),
+            embeddings_regularizer=keras.regularizers.L1L2(),
+            embeddings_constraint=keras.constraints.MinMaxNorm(),
+            trainable=trainable
+            ),
+        keras.layers.GlobalMaxPooling1D(),
+        keras.layers.Dropout(dropout),
+        keras.layers.Dense(nb_classes, use_bias=False, activation='softmax')
+    ])
+    model.compile(
+        optimizer=optim,
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy'],
+
+    )
+    return model
+
+
 def create_model_func(nb_input, vocab: list[str], emb_size=200, nb_classes=6, dropout=0.5, optim="sgd"):
     """
         Example de modèle plus profond avec connexions résiduelles
@@ -232,22 +263,6 @@ def plot_embeddings(model, tv, layer_idx=1):
     )
 
     return fig
-
-
-
-
-# keras.layers.Embedding(voc_size, 
-#                                emb_size,
-#                                embeddings_initializer=u.PretrainedInitializer(
-#                                    "frWac_non_lem_no_postag_no_phrase_200_cbow_cut100.bin", 
-#                                    vocab
-#                                ),
-#                                # embeddings_regularizer=keras.regularizers.L1L2(),
-#                                # embeddings_constraint=keras.constraints.MinMaxNorm(),
-#                                trainable=True
-#
-#                               )
-
 
 
 class PretrainedInitializer(keras.initializers.Initializer):
