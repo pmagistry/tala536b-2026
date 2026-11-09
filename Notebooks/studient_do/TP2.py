@@ -47,7 +47,7 @@ def _(mo):
 
 @app.cell
 def _(u):
-    corpus = u.load_text("corpus/corpus6.txt", limit=1000)
+    corpus = u.load_text("corpus/corpus-classif.json", limit=1000)
     langues = list(sorted({ d['label'] for d in corpus }))
     code_langues = {l:i for i, l in enumerate(langues)}
 
