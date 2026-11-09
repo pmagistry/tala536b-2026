@@ -1,130 +1,71 @@
 import marimo
 
-__generated_with = "0.25.2"
-app = marimo.App()
+__generated_with = "0.25.0"
+app = marimo.App(width="medium")
 
 
 @app.cell
-def _():
+def imports():
     import marimo as mo
     import numpy as np
-    import os
-    import json
-    os.environ["KERAS_BACKEND"] = "torch"
-    import keras
-    from keras.models import Sequential
-    from keras.layers import Dense, Embedding, GlobalMaxPooling1D, GlobalAveragePooling1D, Normalization, Dropout
-    from keras.optimizers import Adam
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import ConfusionMatrixDisplay
     import matplotlib.pyplot as plt
 
-    return (
-        Adam,
-        ConfusionMatrixDisplay,
-        Dense,
-        Dropout,
-        Embedding,
-        GlobalMaxPooling1D,
-        Sequential,
-        json,
-        keras,
-        np,
-        plt,
-        train_test_split,
-    )
+    import regex
+    import os
+    import json
+    import random
+    os.environ["KERAS_BACKEND"] = "torch"
+    import keras
+    from sklearn.model_selection import train_test_split
+    import utils_tp3 as u
+
+    return keras, mo, plt, u
 
 
 @app.cell
-def _(json):
-    with open('../data/corpus-classif.json', 'r') as f:
-        json_data = json.load(f)
-    return (json_data,)
+def _(u):
+    corpus, labels, encodeur = u.load_data()
+    tv = u.create_textvectorizer(corpus, 5000)
+    train, dev, test = u.stratified_split(corpus)
+    return dev, encodeur, labels, test, train, tv
 
 
 @app.cell
-def _(json_data):
-    corpus = [{"label": d['catégorie'], "text": d['texte']} for d in json_data if d['texte'] != '\n' and d['catégorie'] != ""]
-    categories = list(sorted({d['label'] for d in corpus}))
-    code_categories = {l:i for i, l in enumerate(categories)}
-    return categories, code_categories, corpus
+def _(dev, encodeur, test, train, tv, u):
+    X_train, Y_train = u.encode(train, tv, encodeur)
+    X_valid, Y_valid = u.encode(dev, tv, encodeur)
+    X_test, Y_test = u.encode(test, tv, encodeur)
+    return X_test, X_train, X_valid, Y_test, Y_train, Y_valid
 
 
 @app.cell
-def _(corpus, keras, train_test_split):
-    train, test = train_test_split(corpus, train_size=0.8, random_state=42)
-    tv = keras.layers.TextVectorization(
-        max_tokens=2000,
-        standardize='lower_and_strip_punctuation',
-        split="whitespace",
-        ngrams=None,
-        output_mode="int",
-        output_sequence_length=32
-    )
-    tv.adapt([line['text'] for line in train])
-    return test, train, tv
+def _(X_train, X_valid, Y_train, Y_valid, keras, labels, tv, u):
+    model = u.create_model_func(30, tv.get_vocabulary(), nb_classes=len(labels), optim='adam')
+    history = model.fit(X_train, Y_train, 
+                        epochs = 400,
+                        validation_data=(X_valid, Y_valid),
+                        callbacks=[keras.callbacks.EarlyStopping("val_accuracy", start_from_epoch=50, patience=30)]
+                       )
+    return history, model
 
 
 @app.cell
-def _(code_categories, np, test, train, tv):
-    X_train = tv([line['text'] for line in train])
-    Y_train = np.array([code_categories[line['label']] for line in train])
-
-    X_test = tv([line['text'] for line in test])
-    Y_test = np.array([code_categories[line['label']] for line in test])
-    return X_test, X_train, Y_test, Y_train
-
-
-@app.cell
-def _(Adam, Dense, Dropout, Embedding, GlobalMaxPooling1D, Sequential):
-    def model_emb(nb_input, nb_classes):
-        model = Sequential([
-            Embedding(input_dim=nb_input, output_dim=128),
-            GlobalMaxPooling1D(),
-            Dropout(0.4),
-            Dense(128, activation='relu'),
-            Dense(nb_classes, activation='softmax')
-        ])
-        model.compile(
-            optimizer=Adam(),
-            loss='sparse_categorical_crossentropy',
-            metrics=['accuracy'],
-        )
-        return model
-
-    return (model_emb,)
-
-
-@app.cell
-def _(X_train, Y_train, categories, model_emb, tv):
-    model = model_emb(tv.vocabulary_size(), len(categories))
-    history = model.fit(X_train, Y_train, epochs=100, batch_size=64, validation_split=0.10)
-    return (model,)
-
-
-@app.cell
-def _(X_test, Y_test, model):
-    model.evaluate(X_test, Y_test)
-    return
-
-
-@app.cell
-def _(ConfusionMatrixDisplay, X_test, Y_test, categories, model, np, plt):
-    Y_pred = model.predict(X_test)
-
-    ConfusionMatrixDisplay.from_predictions(
-        Y_test, # en "sparse", Y est déjà bien encodé
-        np.argmax(Y_pred, axis=1), 
-        labels=range(len(categories)), 
-        display_labels=categories
-    )
+def _(history, plt, u):
+    u.plot_history(history)
     plt.show()
     return
 
 
 @app.cell
-def _(tv):
-    tv.get_vocabulary()
+def _(X_test, Y_test, model):
+    model.evaluate(X_test, Y_test, batch_size=1)
+    return
+
+
+@app.cell
+def matrice_de_confusion(X_test, Y_test, labels, model, u):
+    u.plot_confusion(model, X_test, Y_test, labels)
     return
 
 
@@ -135,15 +76,18 @@ def _(model):
 
 
 @app.cell
-def _():
-    from gensim.models import KeyedVectors
+def _(model, tv, u):
+    import plotly.express as px
+    from umap import UMAP
 
-    return (KeyedVectors,)
+    u.plot_embeddings(model, tv, 0)
+    return
 
 
 @app.cell
-def _(KeyedVectors):
-    vec = KeyedVectors.load_word2vec_format("../data/frWac_non_lem_no_postag_no_phrase_200_cbow_cut100.bin", binary=True, unicode_errors="ignore")
+def _(keras, mo, model):
+    keras.utils.plot_model(model, show_dtype=True, show_shapes=True, show_layer_names=True, show_layer_activations=True)
+    mo.image("./model.png")
     return
 
 
