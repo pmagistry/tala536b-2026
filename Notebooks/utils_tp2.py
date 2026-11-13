@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-import polars as pl
+import polars as pl # un peu comme pandas
 import os
 os.environ["KERAS_BACKEND"] = "torch"
 import keras
@@ -24,7 +24,7 @@ def load_data(corpus_path: str, limit=50) -> list[dict]:
             n_tr = text.count("tr")
             n_sc = text.count("sc")
             l = len(text)
-            instance = {"label":label, "th": n_th / l, "en": n_en /l}
+            instance = {"label":label, "th": n_th / l, "en": n_en /l, "le" : n_le/l, "st": n_st/l, "tr":n_tr/l, "sc": n_sc/l}
             data.append(instance)
             if len(data) >= limit:
                 return data

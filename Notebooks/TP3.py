@@ -1,7 +1,15 @@
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Début
+    """)
+    return
 
 
 @app.cell
@@ -29,6 +37,14 @@ def _(u):
     tv = u.create_textvectorizer(corpus, 5000)
     train, dev, test = u.stratified_split(corpus)
     return dev, encodeur, labels, test, train, tv
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Découpage
+    """)
+    return
 
 
 @app.cell

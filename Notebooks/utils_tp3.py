@@ -28,7 +28,7 @@ def lower_and_filter_names(txt: str) -> str:
     return txt
 
 
-def load_data(corpus_file="./corpus-classif.json", target="catégorie") -> dict:
+def load_data(corpus_file="../data/corpus-classif.json", target="catégorie") -> dict:
     """ 
     Chargement du corpus
     Retourne le corpus, les classes et un dict associant les classes à leur code.
