@@ -4,20 +4,6 @@ __generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    # TP2 : classification en 6 langues (version PyTorch)
-
-    L'objectif est de tester le changement de loss, l'activation softmax et de produire un classifieur pour plus de deux langues.
-
-    ## Imports usuels
-
-    (ici j'utilise un fichier python annexe pour une partie de mon code, pensez à aller le voir aussi)
-    """)
-    return
-
-
 @app.cell
 def imports():
     import marimo as mo
@@ -29,25 +15,10 @@ def imports():
     return mo, np, train_test_split, u
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Lecture des données
-
-    (fonctions issues du TP précédent, déplacées dans la bibliothèque)
-
-    Ce code peut aussi marcher avec le corpus6.txt
-
-    Question:
-    - est-il possible de critiquer la normalisation du corpus à cet endroit ?
-    """)
-    return
-
-
 @app.cell
 def _(u):
     corpus, classes, code_classes = u.load_data_json("../data/corpus-classif.json")
-    return classes, corpus
+    return classes, code_classes, corpus
 
 
 @app.cell(hide_code=True)
@@ -63,10 +34,10 @@ def _(mo):
 
 
 @app.cell
-def _(classes, corpus, train_test_split, u):
+def _(code_classes, corpus, train_test_split, u):
     train, test = train_test_split(corpus, train_size=0.8, random_state=42)
-    X_train, Y_train = u.encode_corpus_sparse(train, classes)
-    X_test, Y_test = u.encode_corpus_sparse(test, classes)
+    X_train, Y_train = u.encode_corpus_sparse(train, code_classes)
+    X_test, Y_test = u.encode_corpus_sparse(test, code_classes)
     return X_test, X_train, Y_test, Y_train
 
 

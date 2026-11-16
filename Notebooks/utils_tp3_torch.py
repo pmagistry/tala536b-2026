@@ -4,27 +4,10 @@ import json
 import regex
 import torch
 import torch.nn as nn
-import torchtext.transforms as T
+import torch.nn.functional as F
+import torch.optim as optim
 from torch.hub import load_state_dict_from_url
 from torch.utils.data import DataLoader
-
-
-def prep_text_transform():
-    padding_idx = 1
-    bos_idx = 0
-    eos_idx = 2
-    max_seq_len = 256
-    xlmr_vocab_path = r"https://download.pytorch.org/models/text/xlmr.vocab.pt"
-    xlmr_spm_model_path = r"https://download.pytorch.org/models/text/xlmr.sentencepiece.bpe.model"
-
-    text_transform = T.Sequential(
-        T.SentencePieceTokenizer(xlmr_spm_model_path),
-        T.VocabTransform(load_state_dict_from_url(xlmr_vocab_path)),
-        T.Truncate(max_seq_len - 2),
-        T.AddToken(token=bos_idx, begin=True),
-        T.AddToken(token=eos_idx, begin=False),
-    )
-    return text_transform
 
 
 def lower_and_filter_names(txt: str) -> str:
@@ -50,21 +33,28 @@ def load_data_json(corpus_file="./corpus-classif.json", target="catégorie") -> 
     code_classes = {l:i for i, l in enumerate(classes)}
     return corpus, classes, code_classes
 
+def get_vocab(corpus):
+    vocab = ["[PAD]"] + "[OOV]" + sorted(set(" ".join(corpus).split()))
+    return vocab
 
-def encode_corpus_one_hot(dataset: list[dict], langues: list[str]) -> tuple[np.array, np.array]:
-    bigrams_keys = list(sorted(k for k in dataset[0].keys() if k != 'label'))
-    X_lang = np.array([[d[k] for k in bigrams_keys] for d in dataset])
-    y_lang = np.array([[1 if d['label'] == l else 0 for l in langues] for d in dataset])
-    return X_lang, y_lang
+def get_word2Index(vocab):
+    word2Index = {word:i for i, word in enumerate(vocab)}
+    return word2Index
 
+def encode_corpus_one_hot(corpus: list[str], word2Index: dict):
+    pass
 
-def encode_corpus_sparse(dataset: list[dict], langues: list[str]) -> tuple[np.array, np.array]:
-    bigrams_keys = list(sorted(k for k in dataset[0].keys() if k != 'label'))
-    X_lang = np.array([[d[k] for k in bigrams_keys] for d in dataset])
-    code_langues = {l: i for i, l in enumerate(langues)}
-    y_lang = np.array([code_langues[d['label']] for d in dataset])
-    return X_lang, y_lang
-
+def encode_corpus_sparse(corpus: list[str], encodeur):
+    arr = []
+    for sent in corpus:
+        vect = []
+        for i, word in enumerate(corpus):
+            if word not in word2Index:
+                vect.append(word2Index["[OOV]"])
+            else:
+                vect.apend(word2Index[word])
+        arr.append(vect)
+    return torch.tensor(arr, dtype=torch.int32), np.array(encodeur[sent[label]] for sent in corpus)
 
 class Normalization(nn.Module):
     """Couche de normalisation (équivalent de keras.layers.Normalization)."""
@@ -183,19 +173,21 @@ def predict_model(model, X):
         return torch.softmax(model(X), dim=1).numpy()
 
 
-class MLPSequential(nn.Module):
+class NNembedding(nn.Module):
     """Petit MLP binary (équivalent de keras_mlp_sequential)."""
 
-    def __init__(self, nb_input=2):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(nb_input, 8),
-            nn.Tanh(),
-            nn.Linear(8, 1),
-        )
+    def __init__(self, vocab_size, max_len, embed_dim):
+        super(NNembedding, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, embedding_dim=embed_dim)
+        self.linear = nn.Linear(max_len, 1)
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, x):
-        return self.net(x)
+        x = self.embedding(x)
+        x = self.dropout(x)
+        bs, _, _ = x.shape
+        x = F.adaptive_max_pool1d(x, 1).reshape(bs, -1)
+        return self.linear(x)
 
 
 def torch_mlp_sequential(nb_input=2):
