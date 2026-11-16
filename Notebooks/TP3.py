@@ -41,7 +41,7 @@ def _(dev, encodeur, test, train, tv, u):
 
 @app.cell
 def _(X_train, X_valid, Y_train, Y_valid, keras, labels, tv, u):
-    model = u.create_model_pretrained(30, tv.get_vocabulary(), nb_classes=len(labels), optim='adam', trainable=False)
+    model = u.create_model_pretrained(30, tv.get_vocabulary(), nb_classes=len(labels), optim='adam', trainable=True)
     history = model.fit(X_train, Y_train, 
                         epochs = 100,
                         validation_data=(X_valid, Y_valid),
