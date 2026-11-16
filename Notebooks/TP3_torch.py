@@ -4,15 +4,31 @@ __generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Disclaimer
+    j'ai adapté sans trop de problèmes les fonctions de prétraitement,
+    j'en ai réjouté pour créer un vocabulaire et le word2Index,
+    j'avais à peu près quelque chose de convaincant pour la vectorisation mais j'ai pas eu l'intuition
+    de faire par batch pour résoudre le problème de padding des phrases que j'avais
+    pour le reste, c'est essentiellement généré par GLM 5.3 Flash (via mistral)
+    j'ai essayé de comprendre autant que possible mais ça reste cryptique
+    je comprends les entrées et les sorties de chaque fonction mais tout ce qu'il y a entre me reste opaque
+    mais voilà, disclaimer pour dire que je n'ai clairement pas compris tout ce qui est écrit ici (dans le fichier utils, ici ça va c'est ok)
+    """)
+    return
+
+
 @app.cell
-def imports():
+def _():
     import marimo as mo
-    import numpy as np
-    import torch
+    from sklearn.metrics import ConfusionMatrixDisplay
+    import matplotlib.pyplot as plt
     from sklearn.model_selection import train_test_split
     import utils_tp3_torch as u
 
-    return mo, np, train_test_split, u
+    return ConfusionMatrixDisplay, mo, plt, train_test_split, u
 
 
 @app.cell
@@ -21,88 +37,46 @@ def _(u):
     return classes, code_classes, corpus
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Découpage et encodage du corpus
-
-    Le découpage 80/20 est réalisé avec scikit-learn
-
-    L'encodage se fait ici en ***sparse***, une version **one-hot** des fonctions et du modèle est disponible
-    """)
-    return
-
-
 @app.cell
 def _(code_classes, corpus, train_test_split, u):
     train, test = train_test_split(corpus, train_size=0.8, random_state=42)
-    X_train, Y_train = u.encode_corpus_sparse(train, code_classes)
-    X_test, Y_test = u.encode_corpus_sparse(test, code_classes)
-    return X_test, X_train, Y_test, Y_train
 
+    vocab = u.create_vocab(train)
+    word2Index = u.create_word2Index(vocab)
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Création et entraînement d'un modèle
-    (voir dans le fichier annexe pour les détails)
-
-    En PyTorch, pas de `compile` : on choisit explicitement l'optimiseur (SGD) et la
-    fonction de coût (`CrossEntropyLoss`, qui applique un log-softmax en interne —
-    c'est l'équivalent de `sparse_categorical_crossentropy`).
-    """)
-    return
+    Y_train = [code_classes[s["label"]] for s in train]
+    Y_test = [code_classes[s["label"]] for s in test]
+    return Y_test, Y_train, test, train, vocab, word2Index
 
 
 @app.cell
-def _(X_train, Y_train, classes, u):
-    model, loss = u.model_sparse(len(classes), len(classes))
-    model.normalization.adapt(X_train)  # on calcule les paramètres de normalisation sur le corpus d'entraînement
-    u.train_model(model, loss, X_train, Y_train, epochs=1000, batch_size=32)
+def _(Y_test, Y_train, classes, test, train, u, vocab, word2Index):
+    model, lr = u.model_embedding(len(vocab), embed_dim=50, nb_classes=len(classes))
+    model = u._fit(model, train, Y_train, word2Index, lr=lr)
+    u.evaluate_model(model, test, Y_test, word2Index)
     return (model,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Évaluation sur le jeu de test
-
-    Question:
-    - Serait-il pertinent d'effectuer le split_valid au moment de l'entraînement ? Quelle différence ?
-    """)
-    return
-
-
 @app.cell
-def _(X_test, Y_test, model, u):
-    u.evaluate_model(model, X_test, Y_test)
-    return
+def matrice_de_confusion(
+    ConfusionMatrixDisplay,
+    Y_test,
+    classes,
+    model,
+    plt,
+    test,
+    u,
+    word2Index,
+):
+    import numpy as np
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Matrice de confusion
-
-    Un point important à comprendre ici est le rôle des np.argmax
-
-    - Que se passe-t-il si on passe en encodage ***sparse*** ?
-    """)
-    return
-
-
-@app.cell
-def matrice_de_confusion(X_test, Y_test, langues, model, np, u):
-    from sklearn.metrics import ConfusionMatrixDisplay
-    import matplotlib.pyplot as plt
-
-    Y_pred = u.predict_model(model, X_test)
+    Y_pred = u.predict_model(model, test, word2Index)
 
     ConfusionMatrixDisplay.from_predictions(
         Y_test,  # en "sparse", Y est déjà bien encodé
-        np.argmax(Y_pred, axis=1),
-        labels=range(len(langues)),
-        display_labels=langues
+        Y_pred,
+        labels=range(len(classes)),
+        display_labels=classes
     )
     plt.show()
     return

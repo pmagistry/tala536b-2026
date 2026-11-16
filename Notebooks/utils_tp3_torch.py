@@ -1,4 +1,3 @@
-from pathlib import Path
 import numpy as np
 import json
 import regex
@@ -6,9 +5,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.hub import load_state_dict_from_url
-from torch.utils.data import DataLoader
 
+# j'ai adapté sans trop de problèmes les fonctions de prétraitement,
+# j'en ai réjouté pour créer un vocabulaire et le word2Index,
+# j'avais à peu près quelque chose de convaincant pour la vectorisation mais j'ai pas eu l'intuition
+# de faire par batch pour résoudre le problème de padding des phrases que j'avais
+# pour le reste, c'est essentiellement généré par GLM 5.3 Flash (via mistral)
+# j'ai essayé de comprendre autant que possible mais ça reste cryptique
+# je comprends les entrées et les sorties de chaque fonction mais tout ce qu'il y a entre me reste opaque
+# mais voilà, disclaimer pour dire que je n'ai clairement pas compris tout ce qui est écrit ici
 
 def lower_and_filter_names(txt: str) -> str:
     """
@@ -33,162 +38,94 @@ def load_data_json(corpus_file="./corpus-classif.json", target="catégorie") -> 
     code_classes = {l:i for i, l in enumerate(classes)}
     return corpus, classes, code_classes
 
-def get_vocab(corpus):
-    vocab = ["[PAD]"] + "[OOV]" + sorted(set(" ".join(corpus).split()))
+def create_vocab(corpus):
+    vocab = ["[PAD]", "[OOV]"] + sorted(set(" ".join([sent["text"] for sent in corpus]).split()))
     return vocab
 
-def get_word2Index(vocab):
+def create_word2Index(vocab):
     word2Index = {word:i for i, word in enumerate(vocab)}
     return word2Index
 
-def encode_corpus_one_hot(corpus: list[str], word2Index: dict):
-    pass
+def encode_batch(sentences, word2Index):
+    seqs = [
+        [word2Index.get(w, word2Index["[OOV]"]) for w in s["text"].split()]
+        for s in sentences
+    ]
+    lengths = torch.tensor([len(s) for s in seqs])
+    max_len = lengths.max().item()
 
-def encode_corpus_sparse(corpus: list[str], encodeur):
-    arr = []
-    for sent in corpus:
-        vect = []
-        for i, word in enumerate(corpus):
-            if word not in word2Index:
-                vect.append(word2Index["[OOV]"])
-            else:
-                vect.apend(word2Index[word])
-        arr.append(vect)
-    return torch.tensor(arr, dtype=torch.int32), np.array(encodeur[sent[label]] for sent in corpus)
+    padded = torch.full((len(seqs), max_len), word2Index["[PAD]"], dtype=torch.long)
+    for i, s in enumerate(seqs):
+        padded[i, :len(s)] = torch.tensor(s, dtype=torch.long)
 
-class Normalization(nn.Module):
-    """Couche de normalisation (équivalent de keras.layers.Normalization)."""
-
-    def __init__(self):
-        super().__init__()
-        self.mean = None
-        self.std = None
-
-    def adapt(self, data):
-        data = torch.as_tensor(np.asarray(data), dtype=torch.float32)
-        self.mean = data.mean(dim=0)
-        std = data.std(dim=0)
-        self.std = torch.where(std == 0, torch.ones_like(std), std)
-
-    def forward(self, x):
-        if self.mean is None:
-            raise RuntimeError("Appelez adapt(data) avant l'entraînement.")
-        return (x - self.mean) / self.std
+    return padded, lengths
 
 
-class MLP6Langues(nn.Module):
-    """Réseau dense : normalisation + 6 couches cachées relu + softmax."""
-
-    def __init__(self, nb_input=2, nb_classes=6):
-        super().__init__()
-        self.normalization = Normalization()
-        self.dense = nn.Sequential(
-            nn.Linear(nb_input, 128), nn.ReLU(),
-            nn.Linear(128, 128), nn.ReLU(),
-            nn.Linear(128, 128), nn.ReLU(),
-            nn.Linear(128, 128), nn.ReLU(),
-            nn.Linear(128, 128), nn.ReLU(),
-            nn.Linear(128, 128), nn.ReLU(),
-            nn.Linear(128, nb_classes, bias=False),
-        )
-
-    def forward(self, x):
-        x = self.normalization(x)
-        return self.dense(x)
-
-
-def _fit(model, X_train, Y_train, loss_fn, epochs=100, batch_size=32, lr=0.01):
-    X = torch.as_tensor(np.asarray(X_train), dtype=torch.float32)
-    Y = torch.as_tensor(np.asarray(Y_train))
-    if Y.ndim > 1:
-        Y = Y.float()
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+def _fit(model, train, Y_train, word2Index, epochs=100, batch_size=32, lr=0.01):
+    Y = torch.as_tensor(np.asarray(Y_train), dtype=torch.long)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model.train()
-    n = len(X)
+    n = len(train)
     for epoch in range(epochs):
         perm = torch.randperm(n)
         total_loss, correct = 0.0, 0
         for i in range(0, n, batch_size):
             idx = perm[i:i + batch_size]
-            xb, yb = X[idx], Y[idx]
+            xb, lengths = encode_batch([train[j] for j in idx], word2Index)
+            yb = Y[idx]
             optimizer.zero_grad()
-            logits = model(xb)
-            if loss_fn.target_is_sparse:
-                loss = loss_fn.fn(logits, yb)
-                correct += (logits.argmax(dim=1) == yb).sum().item()
-            else:
-                loss = loss_fn.fn(logits, yb)
-                correct += (logits.argmax(dim=1) == yb.argmax(dim=1)).sum().item()
+            logits = model(xb, lengths)
+            loss = nn.functional.cross_entropy(logits, yb)
             loss.backward()
             optimizer.step()
             total_loss += loss.item() * len(idx)
+            correct += (logits.argmax(dim=1) == yb).sum().item()
         print(f"epoch {epoch + 1}/{epochs} - loss: {total_loss / n:.4f} - accuracy: {correct / n:.4f}")
     return model
 
-
-class _SparseLoss:
-    target_is_sparse = True
-    fn = staticmethod(nn.CrossEntropyLoss())
-
-
-class _OneHotLoss:
-    target_is_sparse = False
-    fn = staticmethod(nn.CrossEntropyLoss())
-
-
-def model_sparse(nb_input=2, nb_classes=6, optim="sgd"):
-    return MLP6Langues(nb_input, nb_classes), _SparseLoss()
-
-
-def model_one_hot(nb_input=2, nb_classes=6, optim="sgd"):
-    return MLP6Langues(nb_input, nb_classes), _OneHotLoss()
-
+def model_embedding(vocab_size, embed_dim=50, nb_classes=6, lr=1e-3):
+    return NNembedding(vocab_size, embed_dim, nb_classes), lr
 
 def train_model(model, loss, X_train, Y_train, epochs=100, batch_size=32):
     return _fit(model, X_train, Y_train, loss, epochs=epochs, batch_size=batch_size)
 
 
-def evaluate_model(model, X_test, Y_test, loss=None):
-    X = torch.as_tensor(np.asarray(X_test), dtype=torch.float32)
-    Y = torch.as_tensor(np.asarray(Y_test))
-    if Y.ndim > 1:
-        Y = Y.float()
-    sparse = Y.ndim == 1 or (loss is not None and loss.target_is_sparse)
+def evaluate_model(model, test, Y_test, word2Index, batch_size=64):
+    Y = torch.as_tensor(np.asarray(Y_test), dtype=torch.long)
     model.eval()
+    total_loss, correct, n = 0.0, 0, len(test)
     with torch.no_grad():
-        logits = model(X)
-        loss_value = nn.functional.cross_entropy(logits, Y).item()
-        if sparse:
-            acc = (logits.argmax(dim=1) == Y).float().mean().item()
-        else:
-            acc = (logits.argmax(dim=1) == Y.argmax(dim=1)).float().mean().item()
-    print(f"loss: {loss_value:.4f} - accuracy: {acc:.4f}")
-    return loss_value, acc
+        for i in range(0, n, batch_size):
+            xb, _ = encode_batch(test[i:i + batch_size], word2Index)
+            yb = Y[i:i + batch_size]
+            logits = model(xb)
+            total_loss += nn.functional.cross_entropy(logits, yb, reduction="sum").item()
+            correct += (logits.argmax(dim=1) == yb).sum().item()
+    print(f"loss: {total_loss / n:.4f} - accuracy: {correct / n:.4f}")
+    return total_loss / n, correct / n
 
 
-def predict_model(model, X):
-    X = torch.as_tensor(np.asarray(X), dtype=torch.float32)
+def predict_model(model, sentences, word2Index, batch_size=64):
     model.eval()
+    preds = []
     with torch.no_grad():
-        return torch.softmax(model(X), dim=1).numpy()
+        for i in range(0, len(sentences), batch_size):
+            xb, _ = encode_batch(sentences[i:i + batch_size], word2Index)
+            logits = model(xb)
+            preds.append(logits.argmax(dim=1))
+    return torch.cat(preds).numpy()
 
 
 class NNembedding(nn.Module):
-    """Petit MLP binary (équivalent de keras_mlp_sequential)."""
-
-    def __init__(self, vocab_size, max_len, embed_dim):
-        super(NNembedding, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_dim=embed_dim)
-        self.linear = nn.Linear(max_len, 1)
+    def __init__(self, vocab_size, embed_dim, nb_classes):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
         self.dropout = nn.Dropout(0.5)
+        self.linear = nn.Linear(embed_dim, nb_classes)
 
-    def forward(self, x):
+    def forward(self, x, lengths=None):
         x = self.embedding(x)
         x = self.dropout(x)
-        bs, _, _ = x.shape
-        x = F.adaptive_max_pool1d(x, 1).reshape(bs, -1)
+        bs, _, e = x.shape
+        x = F.adaptive_max_pool1d(x.transpose(1, 2), 1).reshape(bs, e)
         return self.linear(x)
-
-
-def torch_mlp_sequential(nb_input=2):
-    return MLPSequential(nb_input)
