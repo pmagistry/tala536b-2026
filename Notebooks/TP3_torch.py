@@ -82,5 +82,14 @@ def matrice_de_confusion(
     return
 
 
+@app.cell
+def _(Y_test, Y_train, classes, test, train, u, weights, word2Index):
+    weights
+    pretrained_model, lr = u.model_embedding_pretrained(weights, embed_dim=50, nb_classes=len(classes))
+    pretrained_model = u._fit(pretrained_model, train, Y_train, word2Index, lr=lr)
+    u.evaluate_model(pretrained_model, test, Y_test, word2Index)
+    return
+
+
 if __name__ == "__main__":
     app.run()

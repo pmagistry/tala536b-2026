@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from gensim.models.keyedvectors import KeyedVectors
+
 
 # j'ai adapté sans trop de problèmes les fonctions de prétraitement,
 # j'en ai réjouté pour créer un vocabulaire et le word2Index,
@@ -86,6 +88,9 @@ def _fit(model, train, Y_train, word2Index, epochs=100, batch_size=32, lr=0.01):
 def model_embedding(vocab_size, embed_dim=50, nb_classes=6, lr=1e-3):
     return NNembedding(vocab_size, embed_dim, nb_classes), lr
 
+def model_embedding_pretrained(vocab_size, embed_dim=50, nb_classes=6, lr=1e-3):
+    return NNembedding_pretrained(weights, nb_classes), lr
+
 def train_model(model, loss, X_train, Y_train, epochs=100, batch_size=32):
     return _fit(model, X_train, Y_train, loss, epochs=epochs, batch_size=batch_size)
 
@@ -120,6 +125,20 @@ class NNembedding(nn.Module):
     def __init__(self, vocab_size, embed_dim, nb_classes):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
+        self.dropout = nn.Dropout(0.5)
+        self.linear = nn.Linear(embed_dim, nb_classes)
+
+    def forward(self, x, lengths=None):
+        x = self.embedding(x)
+        x = self.dropout(x)
+        bs, _, e = x.shape
+        x = F.adaptive_max_pool1d(x.transpose(1, 2), 1).reshape(bs, e)
+        return self.linear(x)
+
+class NNembedding_pretrained(nn.Module):
+    def __init__(self, vocab_size, embed_dim, freeze=True):
+        super().__init__()
+        self.embedding = nn.Embedding.from_pretrained(weights, freeze=freeze)
         self.dropout = nn.Dropout(0.5)
         self.linear = nn.Linear(embed_dim, nb_classes)
 
