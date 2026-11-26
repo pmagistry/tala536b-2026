@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.24.2"
-app = marimo.App(layout_file="layouts/cours1.slides.json")
+__generated_with = "0.25.2"
+app = marimo.App()
 
 
 @app.cell
@@ -69,11 +69,20 @@ def _(mo):
     ### Création de données
     (artificelles et linéairement séparables)
 
-    classe 0 si
+    classe 1 si
 
     $$ 2y + x  > 0 $$
 
-    sinon classe 1.
+    sinon classe 0.
+
+    /// warning | Correction
+    <small>Version originale : *« classe 0 si $2y + x > 0$, sinon classe 1 »*.</small>
+
+    Le texte original inversait les classes par rapport au code.
+    `y_lin = (X_lin[:, 0] + 2 * X_lin[:, 1] > 0).float()` renvoie **1**
+    quand $x + 2y > 0$ (`True` → `1.0`), donc ces points sont en **classe 1**.
+    C'est le code qui fabrique les étiquettes : c'est lui qui fait foi.
+    ///
 
     Autrement dit on sépare les données par la droite :
     $$ y = -\frac{x}{2} $$
@@ -85,9 +94,15 @@ def _(mo):
 def _(mo, torch):
 
     N = 100
-    X_lin = torch.randn(N, 2)
-    y_lin = (X_lin[:, 0] + 2 * X_lin[:, 1] > 0).float()
+    X_lin = torch.randn(N, 2) # entrée random
+    y_lin = (X_lin[:, 0] + 2 * X_lin[:, 1] > 0).float() # résultat/étiquette d'appartenance à la classe 0 ou 1(classe de chaque point)
     mo.md("Données artificielles, linéairement séparables dans R^2")
+
+    print(X_lin[:10])
+    print(y_lin[:10])
+
+    print(len(X_lin))
+    print(len(y_lin))
     return X_lin, y_lin
 
 
@@ -101,20 +116,35 @@ def _(mo):
 
 @app.cell
 def _(X_lin, mo, torch, y_lin):
-    def train_perceptron(X, y, eta=1.0, max_epochs=100):
-        w = torch.zeros(X.shape[1])
-        b = 0.0
-        for epoch in range(max_epochs):
+    def train_perceptron(X: torch.Tensor, y: torch.Tensor, eta=1.0, max_epochs=100):
+        # torch.zeros() -> génére un tenseur contenant 0.0
+        # X.shape[1] -> donne le nombre de colonne (shape[0] nb de ligne)
+        # w = tenseur à une dimension de  longueur 2 (X.shape[1])
+        # chaque entrée de w représente le poids associé à une colonne
+        w = torch.zeros(X.shape[1]) # tenseurs de 2 nombres
+        # print(len(X))
+        # print(len(y))
+        # print(w)
+        b = 0.0 #biais
+        for epoch in range(max_epochs): # jusqu'à 100 époques max (époque = 1 passage sur tout X)
             errors = 0
-            for i in range(X.shape[0]):
-                xi, yi = X[i], y[i].item()
-                yhat = 1.0 if (w @ xi + b) > 0 else 0.0
+            for i in range(X.shape[0]): # pour chaque ligne 
+                xi, yi = X[i], y[i].item() # .item() : tenseur -> float
+                #if (i==0): 
+                    #print(xi)
+                # @ produit scalaire des poids avec une ligne des données 
+                yhat = 1.0 if (w @ xi + b) > 0 else 0.0 # yhat = ŷ -> prédiction (0 ou 1 )
+                # eta = taux d'apprentissage ou pas 
                 update = eta * (yi - yhat)   # dans {-1, 0, +1}
+                # update = eta * (vérité-prédiction)
                 if update != 0:
                     w += update * xi
                     b += update
+                    #print(w,b)
                     errors += 1
             if errors == 0:
+                print("plus de fautes c'est bon")
+                print("nombre d'epoch",epoch + 1) # epoch commence à 0
                 break
         return w, b, epoch
 
@@ -124,14 +154,14 @@ def _(X_lin, mo, torch, y_lin):
 
 
 @app.cell
-def _(np, plt, w_perc):
+def _(np, plt):
     def plot_artifical_data(X, y, w, b, title="données et modèle linéaires"):
         fig, ax = plt.subplots(figsize=(5, 4))
         m = y == 1
         ax.scatter(X[m, 0], X[m, 1], c="tab:red", s=15, label="classe 1")
         ax.scatter(X[~m, 0], X[~m, 1], c="tab:blue", s=15, label="classe 0")
         xs = np.linspace(-3, 3, 50)
-        if abs(w_perc[1]) > 1e-8:
+        if abs(w[1]) > 1e-8: # corrigé : testait w_perc[1] (le perceptron) au lieu du w passé en paramètre
             ax.plot(xs, -(w[0] * xs + b) / w[1], "k-", lw=2)
         ax.set_title(title)
         ax.legend()
@@ -217,24 +247,40 @@ def _(mo):
 def _(X_lin, mo, nn, torch, y_lin):
     def build_and_train_single_neuron(X, y):
         # building the "model"
-        single_neuron = nn.Linear(2, 1)
+        single_neuron = nn.Linear(2, 1) #2 caractéristiques, 1 neurone qui regarde 2 caractéristiques
+        # Linear = calcule w·x + b, donc la frontière est une droite ; ça suffit ici car les données sont linéairement séparables
+        # seul l'apprentissage change; la méthode de classification ne change pas 
 
         # training
-        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1)
-        loss_fn = nn.BCEWithLogitsLoss()
-        y_col = y.unsqueeze(1)
+        opt = torch.optim.SGD(single_neuron.parameters(), lr=0.1) 
+        # optim = module qui contient les optimiseurs càd les algo qui mettent à jour les poids
+        # on utilise l'algo SGD qui applique la règle w <- w-lr*gradients
+        # ici la descente n'est pas stochastique : on passe les 100 points à chaque pas (full batch). Avec des mini-batchs, le même SGD deviendrait stochastique
+        # il garde une référence vers w et b (càd les paramètres du neurone), il les modifiera ensuite ce qui fera évoluer le neurone
 
-        for _ in range(500):
-            opt.zero_grad()
-            loss = loss_fn(single_neuron(X), y_col)
-            loss.backward()
-            opt.step()
+        loss_fn = nn.BCEWithLogitsLoss() # l'évaluateur; ilprend le score brut et le transformera en une proba (chiffre entre 0 et 1) grace à la sigmoide; il surveillera les prédictions du neurone et comparera ses prédictions avec la "vérité" (dans notre cas y)
+        # dit autrement "la fonction qui prend les scores bruts du neurone, les transforme elle-même en probabilités avec la sigmoïde, puis mesure à quel point ces probabilités se trompent"
+        # si c'était BCELoss il faudrait appliquer la fonction de sigmoid à single_neuron(X); donc faire sigmoid(single_neuron(X)); la on s'épargne une étape
+        y_col = y.unsqueeze(1) # au lieu d'avoir tensor([1., 0., 0., ...])
+        # on a tensor([[1.][0.][0.]...])
+        # c'est juste pour que les données soient alignées
 
-        # pseudo-evaluation
-        with torch.no_grad():
-            acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item()
-        return single_neuron, acc
-    single, acc = build_and_train_single_neuron(X_lin, y_lin)
+        for _ in range(500): # 500 époches avec un batch de 100
+            opt.zero_grad() # correction adaptée à l'epoch actuelle; remet .grad à zéro (efface le tableau) ; sinon backward additionne le nouveau gradient aux anciens. Les poids, eux, gardent ce qu'ils ont appris
+            loss = loss_fn(single_neuron(X), y_col) # on met devant l'évaluateur le petit à entrainer avec la feuille des résultats attendus; le jury donne ensuite sa note
+            loss.backward() # parcourt à l'envers les opérations enregistrées (rétropropagation) et calcule le gradient (p − y)·x, rangé dans w.grad et b.grad. Ne modifie pas encore les poids
+            # backward donne la direction de la correction (sans lr ni signe moins) ; c'est step qui en fait l'update
+            opt.step() # c'est ici qu'intervient la maj w <- w-lr*w.gradient
+            # équivalent SGD du w += update * xi du perceptron : même idée (corriger w dans la direction de x), mais erreur continue (p − y) et gradient soustrait
+
+        # pseudo-évaluation : on teste sur les données d'entraînement. En vrai, on garderait une partie des données (test) cachée pendant l'entraînement
+        with torch.no_grad(): # examen, fini l'enregistrement on évalue simplement les capacités entrainées
+            #PyTorch arrête de retenir les opérations, ce qui économise de la mémoire et du temps.
+            acc = ((torch.sigmoid(single_neuron(X)) > 0.5).float() == y_col).float().mean().item() # le neuron fait sa classification binaire (le seuil est à 0.5) des 100 points et on compare avec la "vérité"
+            # .float().mean() on calcule la proportion de bonne réponse
+            # .item() on récupère le nombre
+        return single_neuron, acc # on renvoie le neurone entrainé et son % de bonne réponse 
+    single, acc = build_and_train_single_neuron(X_lin, y_lin) #on donne toujours les 2 tenseurs, un avec les points aléatoire, l'autre avec l'appartenance à la classe 0 ou 1 
     mo.md("code d'entraînement d'un unique neurone")
     return (single,)
 
@@ -325,26 +371,27 @@ def _(mo):
 @app.cell
 def _(nn, torch):
     # XOR Data
-    X_xor = torch.tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]])
+    X_xor = torch.tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]]) 
     y_xor = torch.tensor([[0.], [1.], [1.], [0.]])
 
     # MLP in pytorch (object oriented version)
-    class MLP(nn.Module):
+    class MLP(nn.Module): 
         def __init__(self):
             super().__init__()
-            self.hidden = nn.Linear(2, 2)
-            self.out = nn.Linear(2, 1)
+            self.hidden = nn.Linear(2, 2) # couche cachée avec deux neurones 
+            self.out = nn.Linear(2, 1) # couche extérieur avec un seul neurone qui prendra en entrée les h (sortie de la couche cachée)
 
-        def forward(self, x):
-            return self.out(torch.tanh(self.hidden(x)))
+        def forward(self, x): 
+            #calcul de la couche cachée -> de tanh -> de la couche extérieure
+            return self.out(torch.tanh(self.hidden(x))) 
 
-    mlp = MLP()
+    mlp = MLP() # initialise l'objet MLP
 
     # training in pytorch
     opt = torch.optim.SGD(mlp.parameters(), lr=0.5)
     loss_fn = nn.BCEWithLogitsLoss()
 
-    for _ in range(5000):
+    for _ in range(5000): # même fonctionnement que le SGD 
         opt.zero_grad()
         loss = loss_fn(mlp(X_xor), y_xor)
         loss.backward()
@@ -460,10 +507,10 @@ def _(mo, np):
     # chargement
     def load_data():
         data = []
-        with open("./corpus.txt") as file:
+        with open("./../../data/corpus.txt") as file:
             for line in file:
                 label, text = line.strip().split(" ",1)
-                n_th = text.count("th")
+                n_th = text.count("th") # compte bigram
                 n_en = text.count("en")
                 l = len(text)
                 instance = {"label":label, "th": n_th / l, "en": n_en /l}
@@ -473,19 +520,27 @@ def _(mo, np):
     data_lang = load_data()[:200]
 
     # normalisation
+    # x_normalisé = (x − moyenne) / écart-type 
     def normalise_data(dataset):
-        for k in dataset[0].keys():
+        for k in dataset[0].keys(): 
             if k != 'label':
-                mean = np.mean([d[k] for d in dataset])
-                std = np.std([d[k] for d in dataset])
+                mean = np.mean([d[k] for d in dataset]) # moyenne de cette caractéristique sur toutes les phrases
+                std = np.std([d[k] for d in dataset]) # écart-type de cette caractéristique (standart deviation)
                 for d in dataset:
                     d[k] = (d[k]- mean) / std
 
+    # normalisation : remet th et en à l'échelle ~1. Sans elle, x ≈ 0,01 donc le gradient (p − y)·x
+    # est ~100× trop petit : les poids n'apprennent presque pas (ce n'est pas du vanishing gradient,
+    # qui vient de la saturation de l'activation dans les réseaux profonds)
+    print(data_lang)
     normalise_data(data_lang)
-
+    print(data_lang)
     # encodage des données
     X_lang = np.array([[d['th'], d['en']] for d in data_lang])
     y_lang = np.array([0.0 if d['label'] == 'deu' else 1.0 for d in data_lang])
+
+    print(X_lang[:10])
+    print(y_lang[:10])
     mo.md("essayez avec et sans normalisation !")
     return X_lang, y_lang
 
@@ -502,23 +557,29 @@ def _(mo):
 def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Construction du perceptron en Keras
     model = Sequential([
-        keras.layers.Input(shape=(2,)),
-        Dense(1, activation='sigmoid')
+        keras.layers.Input(shape=(2,)), # 2 caractéristiques (th,en)
+        Dense(4, activation='tanh'),
+        Dense(1, activation='sigmoid') # 1 neurone, puis sigmoide
     ])
 
     # Compilation du modèle
     model.compile(
-        optimizer=SGD(),
-        loss='binary_crossentropy',
-        metrics=['accuracy']
+        optimizer=SGD(), # selection dans le catalogues de l'algo SGD
+        loss='binary_crossentropy', # choix de BCE, pas besoin de logits prcq on a deja la sigmoid sur le model
+        metrics=['accuracy'] 
     )
 
     # Entraînement du modèle
     model.fit(X_lang, y_lang,
-                        epochs=10, 
+                        epochs=70, # après 140 epoch, 95% de précision avec normalisation
+                          # sans normalisation : bloqué à ~55 % même avec 700 epochs. Les entrées minuscules donnent un gradient minuscule,
                         verbose=1, 
                         shuffle=True, 
-                        validation_split=0.2)
+                        validation_split=0.2) # garde 20% des données pour la validation
+    # par défaut keras fait des mini-batchs de 32 pas comme pytorch  
+
+    # Précision du modèle : 55.50% Poids pour 'th_freq' : -0.8248 Poids pour 'en_freq' : 0.1748
+    # seul le biais apprend → le modèle répond toujours "deu" (111/200 = 55,5 %, la classe majoritaire)
 
     # pseudo-Évaluation du modèle
     loss_keras, acc_keras = model.evaluate(X_lang, y_lang, verbose=0)
@@ -526,7 +587,59 @@ def _(Dense, SGD, Sequential, X_lang, keras, mo, y_lang):
     # Affichage des poids appris
     weights = model.layers[0].get_weights()[0]
     bias = model.layers[0].get_weights()[1]
-    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'en_freq' : {weights[0][0]:.4f}\n\nPoids pour 'th_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    # corrigé : les étiquettes étaient inversées ; X_lang = [th, en] donc la colonne 0 est th
+    mo.md(f"Précision du modèle : {acc_keras:.2%}\n\nPoids pour 'th_freq' : {weights[0][0]:.4f}\n\nPoids pour 'en_freq' : {weights[1][0]:.4f}\n\nBiais : {bias[0]:.4f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Classification en Pytorch
+    """)
+    return
+
+
+@app.cell
+def _(X_lang, mo, nn, torch, y_lang):
+
+    from torch.utils.data import TensorDataset, DataLoader
+    # construction et entraînement d'un neurone en Pytorch (équivalent du modèle Keras)
+
+    def build_and_train_neuron(x, y):
+        tx = torch.tensor(x, dtype=torch.float32)
+        ty = torch.tensor(y, dtype=torch.float32)
+        ty_col = ty.unsqueeze(1)
+
+        n_train = int(0.8 * len(tx))
+        tx_train, tx_val = tx[:n_train], tx[n_train:]
+        ty_col_train, ty_col_val = ty_col[:n_train], ty_col[n_train:]
+
+        dataset_train = TensorDataset(tx_train, ty_col_train)
+        loader = DataLoader(dataset_train, batch_size=32, shuffle=True)
+
+        neuron = nn.Linear(2, 1)
+        opt = torch.optim.SGD(neuron.parameters(), lr=0.1)
+        loss_fn = nn.BCEWithLogitsLoss()
+
+        # entrainement
+        for _ in range(70): # epoch
+            for xb, yb in loader: # mini-batch de 32 points
+                opt.zero_grad()
+                loss = loss_fn(neuron(xb), yb)
+                loss.backward()
+                opt.step()
+
+        # évaluation
+        with torch.no_grad():
+            # corrigé : tx_val (et non tx_col_val), seuil > 0.5 avant la comparaison, puis moyenne des bonnes réponses
+            acc_train = ((torch.sigmoid(neuron(tx_train)) > 0.5).float() == ty_col_train).float().mean().item()
+            acc_val = ((torch.sigmoid(neuron(tx_val)) > 0.5).float() == ty_col_val).float().mean().item() 
+
+        return neuron, acc_train, acc_val 
+
+    neuron_pt, acc_train_pt, acc_val_pt = build_and_train_neuron(X_lang, y_lang) 
+    mo.md(f"Précision entraînement : {acc_train_pt:.2%}\n\nPrécision validation : {acc_val_pt:.2%}\n\nPoids pour 'th_freq' : {neuron_pt.weight[0][0].item():.4f}\n\nPoids pour 'en_freq' : {neuron_pt.weight[0][1].item():.4f}\n\nBiais : {neuron_pt.bias[0].item():.4f}")
     return
 
 
