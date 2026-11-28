@@ -77,3 +77,4 @@ def build_model(vocab_size, n_tags, max_len, emb_dim=100, lstm_units=128):
         metrics=["accuracy"],
     )
     return model
+

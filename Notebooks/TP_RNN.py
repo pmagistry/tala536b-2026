@@ -9,8 +9,10 @@ def _():
     import marimo as mo
     from pathlib import Path
     import utils_RNN
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import ConfusionMatrixDisplay
 
-    return Path, mo, utils_RNN
+    return Path, plt, utils_RNN
 
 
 @app.cell
@@ -30,18 +32,6 @@ def _(files, utils_RNN):
     X_dev, Y_dev = utils_RNN.read_conllu(files["dev"])
     X_test, Y_test = utils_RNN.read_conllu(files["test"])
     return X_dev, X_test, X_train, Y_dev, Y_test, Y_train
-
-
-@app.cell
-def _(X_dev, X_test, X_train, mo):
-    mo.md(f"""
-    | partie | phrases | mots |
-    |---|---|---|
-    | train | {len(X_train)} | {sum(map(len, X_train))} |
-    | dev | {len(X_dev)} | {sum(map(len, X_dev))} |
-    | test | {len(X_test)} | {sum(map(len, X_test))} |
-    """)
-    return
 
 
 @app.cell
@@ -97,7 +87,15 @@ def _(
     Y_train_pad = utils_RNN.padding(Y_train_enc, max_len)
     Y_dev_pad = utils_RNN.padding(Y_dev_enc, max_len)
     Y_test_pad = utils_RNN.padding(Y_test_enc, max_len)
-    return X_dev_pad, X_train_pad, Y_dev_pad, Y_train_pad, max_len
+    return (
+        X_dev_pad,
+        X_test_pad,
+        X_train_pad,
+        Y_dev_pad,
+        Y_test_pad,
+        Y_train_pad,
+        max_len,
+    )
 
 
 @app.cell
@@ -115,6 +113,36 @@ def _(X_dev_pad, X_train_pad, Y_dev_pad, Y_train_pad, model):
         epochs=5,
         batch_size=32,
     )
+    return (history,)
+
+
+@app.cell
+def _(X_test_pad, Y_test_pad, model):
+    model.evaluate(X_test_pad, Y_test_pad)
+    return
+
+
+@app.cell
+def _(history, plt):
+    fig, (ax_acc, ax_loss) = plt.subplots(1, 2, figsize=(14, 5))
+
+    ax_acc.plot(history.history['accuracy'], label='Training Accuracy')
+    ax_acc.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    ax_acc.set_title('Accuracy Over Epochs')
+    ax_acc.set_xlabel('Epoch')
+    ax_acc.set_ylabel('Accuracy')
+    ax_acc.legend()
+    ax_acc.grid(True)
+
+    ax_loss.plot(history.history['loss'], label='Training Loss')
+    ax_loss.plot(history.history['val_loss'], label='Validation Loss')
+    ax_loss.set_title('Loss Over Epochs')
+    ax_loss.set_xlabel('Epoch')
+    ax_loss.set_ylabel('Loss')
+    ax_loss.legend()
+    ax_loss.grid(True)
+
+    fig
     return
 
 
