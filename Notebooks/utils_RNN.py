@@ -1,4 +1,8 @@
 from collections import Counter
+import numpy as np
+import os
+os.environ["KERAS_BACKEND"] = "torch"
+import keras
 
 UPOS = 3
 XPOS = 4
@@ -53,4 +57,23 @@ def encode(sentences, encoding):
         sentences_encoded.append(sentence_encoded)
     return sentences_encoded
 
+def padding(sentences_enc, max_len):
+    sentences_padded = np.zeros((len(sentences_enc), max_len), dtype=np.int32)
+    for i, sentence_enc in enumerate(sentences_enc):
+        for j, word_enc in enumerate(sentence_enc[:max_len]):
+            sentences_padded[i, j] = word_enc
+    return sentences_padded
 
+def build_model(vocab_size, n_tags, max_len, emb_dim=100, lstm_units=128):
+    model = keras.Sequential([
+        keras.layers.Input(shape=(max_len,), dtype="int32"),
+        keras.layers.Embedding(input_dim=vocab_size, output_dim=emb_dim, mask_zero=True),
+        keras.layers.LSTM(lstm_units, return_sequences=True),
+        keras.layers.Dense(n_tags, activation="softmax"),
+    ])
+    model.compile(
+        optimizer="adam",
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+    return model
